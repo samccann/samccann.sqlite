@@ -1,0 +1,23 @@
+---
+# defaults file for cursor.sqlite.run
+
+# SQLite database configuration
+run_sqlite_db_path: /tmp/example.db
+run_sqlite_db_permissions: '0640'
+run_sqlite_backup_path: /tmp/example_backup.db
+
+# Control whether to create backups
+run_create_backup: false
+
+# Sample data for demonstration
+run_sample_users:
+  - username: alice
+    email: alice@example.com
+  - username: bob
+    email: bob@example.com
+  - username: charlie
+    email: charlie@example.com
+
+# Database maintenance settings
+run_verify_integrity: true
+run_auto_vacuum: false

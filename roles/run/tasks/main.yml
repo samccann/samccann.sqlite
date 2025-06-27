@@ -1,0 +1,69 @@
+---
+# tasks file for cursor.sqlite.run
+
+# task example for debugging a value
+- name: Debug the value of my_variable
+  ansible.builtin.debug:
+    msg: "The value of my_variable is {{ my_variable }}"
+
+- name: Create SQLite database
+  cursor.sqlite.sqlite_db:
+    path: "{{ run_sqlite_db_path }}"
+    state: present
+    mode: "{{ run_sqlite_db_permissions }}"
+  register: db_creation
+
+- name: Create users table
+  cursor.sqlite.sqlite_table:
+    db: "{{ run_sqlite_db_path }}"
+    name: users
+    state: present
+    columns:
+      - name: id
+        type: INTEGER
+        constraints: PRIMARY KEY AUTOINCREMENT
+      - name: username
+        type: TEXT
+        constraints: NOT NULL UNIQUE
+      - name: email
+        type: TEXT
+        constraints: NOT NULL
+      - name: created_at
+        type: TIMESTAMP
+        constraints: DEFAULT CURRENT_TIMESTAMP
+  when: db_creation is succeeded
+
+- name: Insert sample data
+  cursor.sqlite.sqlite_query:
+    db: "{{ run_sqlite_db_path }}"
+    query: "INSERT OR IGNORE INTO users (username, email) VALUES (?, ?)"
+    parameters:
+      - "{{ item.username }}"
+      - "{{ item.email }}"
+  loop: "{{ run_sample_users }}"
+  when: run_sample_users is defined and run_sample_users | length > 0
+
+- name: Get table information
+  cursor.sqlite.sqlite_table:
+    db: "{{ run_sqlite_db_path }}"
+    name: users
+    state: info
+  register: users_table_info
+
+- name: Debug table information
+  ansible.builtin.debug:
+    msg: 
+      - "Table: {{ users_table_info.table }}"
+      - "Exists: {{ users_table_info.exists }}"
+      - "Row count: {{ users_table_info.row_count | default('N/A') }}"
+      - "Columns: {{ users_table_info.columns | default([]) }}"
+
+- name: Create database backup
+  cursor.sqlite.sqlite_backup:
+    src: "{{ run_sqlite_db_path }}"
+    dest: "{{ run_sqlite_backup_path }}"
+    operation: backup
+    verify_backup: true
+  when: 
+    - run_create_backup | bool
+    - users_table_info.exists | default(false)

@@ -1,0 +1,153 @@
+---
+# Example playbook: SQLite Database Maintenance
+# This playbook demonstrates maintenance operations like backups,
+# integrity checks, and database optimization
+
+- name: SQLite Database Maintenance
+  hosts: localhost
+  gather_facts: true
+  vars:
+    db_path: /tmp/production.db
+    backup_dir: /tmp/backups
+    retention_days: 7
+    
+  tasks:
+    - name: Ensure backup directory exists
+      ansible.builtin.file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check database integrity
+      cursor.sqlite.sqlite_backup:
+        src: "{{ db_path }}"
+        dest: /dev/null
+        operation: verify
+      register: integrity_check
+      failed_when: false
+
+    - name: Report integrity status
+      ansible.builtin.debug:
+        msg: "Database integrity: {{ 'OK' if integrity_check.verified else 'FAILED' }}"
+
+    - name: Fail if database is corrupted
+      ansible.builtin.fail:
+        msg: "Database integrity check failed. Manual intervention required."
+      when: not integrity_check.verified
+
+    - name: Get database statistics
+      cursor.sqlite.sqlite_query:
+        db: "{{ db_path }}"
+        query: |
+          SELECT 
+            'Database Size' as metric,
+            page_count * page_size as value
+          FROM pragma_page_count(), pragma_page_size()
+          UNION ALL
+          SELECT 'Page Count', page_count FROM pragma_page_count()
+          UNION ALL
+          SELECT 'Page Size', page_size FROM pragma_page_size()
+          UNION ALL
+          SELECT 'Unused Pages', freelist_count FROM pragma_freelist_count()
+        fetch: all
+      register: db_stats
+
+    - name: Display database statistics
+      ansible.builtin.debug:
+        msg: "{{ item[0] }}: {{ item[1] }}"
+      loop: "{{ db_stats.rows }}"
+
+    - name: Get table statistics
+      cursor.sqlite.sqlite_query:
+        db: "{{ db_path }}"
+        query: |
+          SELECT 
+            m.name as table_name,
+            (SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND tbl_name=m.name) as index_count,
+            COALESCE((SELECT COUNT(*) FROM pragma_table_info(m.name)), 0) as column_count
+          FROM sqlite_master m 
+          WHERE m.type='table' AND m.name NOT LIKE 'sqlite_%'
+          ORDER BY m.name
+        fetch: all
+      register: table_stats
+
+    - name: Display table statistics
+      ansible.builtin.debug:
+        msg: "Table {{ item[0] }}: {{ item[2] }} columns, {{ item[1] }} indexes"
+      loop: "{{ table_stats.rows }}"
+
+    - name: Create timestamped backup
+      cursor.sqlite.sqlite_backup:
+        src: "{{ db_path }}"
+        dest: "{{ backup_dir }}/backup_{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '') }}.db.gz"
+        operation: backup
+        compress: true
+        verify_backup: true
+      register: backup_result
+
+    - name: Report backup status
+      ansible.builtin.debug:
+        msg:
+          - "Backup created: {{ backup_result.dest }}"
+          - "Original size: {{ backup_result.src_size }} bytes"
+          - "Compressed size: {{ backup_result.dest_size }} bytes"
+          - "Compression ratio: {{ ((backup_result.src_size - backup_result.dest_size) / backup_result.src_size * 100) | round(1) }}%"
+          - "Backup time: {{ backup_result.backup_time }} seconds"
+
+    - name: Find old backups
+      ansible.builtin.find:
+        paths: "{{ backup_dir }}"
+        patterns: "backup_*.db.gz"
+        age: "{{ retention_days }}d"
+        age_stamp: mtime
+      register: old_backups
+
+    - name: Remove old backups
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_backups.files }}"
+      when: old_backups.files | length > 0
+
+    - name: Report cleanup
+      ansible.builtin.debug:
+        msg: "Removed {{ old_backups.files | length }} old backup(s)"
+
+    - name: Optimize database (VACUUM)
+      cursor.sqlite.sqlite_query:
+        db: "{{ db_path }}"
+        query: "VACUUM"
+        fetch: none
+      register: vacuum_result
+
+    - name: Update table statistics after VACUUM
+      cursor.sqlite.sqlite_query:
+        db: "{{ db_path }}"
+        query: "ANALYZE"
+        fetch: none
+
+    - name: Get post-optimization statistics
+      cursor.sqlite.sqlite_query:
+        db: "{{ db_path }}"
+        query: |
+          SELECT 
+            page_count * page_size as database_size,
+            freelist_count as unused_pages
+          FROM pragma_page_count(), pragma_page_size(), pragma_freelist_count()
+        fetch: one
+      register: post_stats
+
+    - name: Report optimization results
+      ansible.builtin.debug:
+        msg: 
+          - "Database optimization completed"
+          - "Current size: {{ post_stats.rows[0][0] }} bytes"
+          - "Unused pages: {{ post_stats.rows[0][1] }}"
+
+    - name: Create verification backup after maintenance
+      cursor.sqlite.sqlite_backup:
+        src: "{{ db_path }}"
+        dest: "{{ backup_dir }}/post_maintenance_{{ ansible_date_time.epoch }}.db"
+        operation: backup
+        verify_backup: true
+      when: backup_result.verified 
