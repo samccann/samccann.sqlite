@@ -13,15 +13,6 @@ with support for compression and integrity checking.
 
 from __future__ import absolute_import, division, print_function
 
-import os
-import sqlite3
-import shutil
-import time
-import gzip
-import tempfile
-from ansible.module_utils.basic import AnsibleModule
-
-
 # pylint: disable=invalid-name
 __metaclass__ = type
 
@@ -36,7 +27,7 @@ description:
     - Validate backup integrity
 version_added: "1.0.0"
 author:
-    - SQLite Collection Contributors
+    - SQLite Collection Contributors (@sqlite-contributors)
 options:
     src:
         description:
@@ -151,6 +142,14 @@ backup_time:
     type: float
     sample: 2.34
 '''
+
+import os
+import sqlite3
+import shutil
+import time
+import gzip
+import tempfile
+from ansible.module_utils.basic import AnsibleModule
 
 
 def get_file_size(path):

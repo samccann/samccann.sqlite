@@ -13,15 +13,6 @@ with support for file permissions and ownership management.
 
 from __future__ import absolute_import, division, print_function
 
-import os
-import sqlite3
-import shutil
-import pwd
-import grp
-from datetime import datetime
-from ansible.module_utils.basic import AnsibleModule
-
-
 # pylint: disable=invalid-name
 __metaclass__ = type
 
@@ -34,7 +25,7 @@ description:
     - Can set file permissions and ownership
 version_added: "1.0.0"
 author:
-    - SQLite Collection Contributors
+    - SQLite Collection Contributors (@sqlite-contributors)
 options:
     path:
         description:
@@ -115,6 +106,14 @@ backup_file:
     type: str
     sample: /tmp/example.db.backup.20240101_120000
 '''
+
+import os
+import sqlite3
+import shutil
+import pwd
+import grp
+from datetime import datetime
+from ansible.module_utils.basic import AnsibleModule
 
 
 def create_database(path):

@@ -13,11 +13,6 @@ with support for complex table definitions and schema information.
 
 from __future__ import absolute_import, division, print_function
 
-import os
-import sqlite3
-from ansible.module_utils.basic import AnsibleModule
-
-
 # pylint: disable=invalid-name
 __metaclass__ = type
 
@@ -31,7 +26,7 @@ description:
     - Support for complex table definitions
 version_added: "1.0.0"
 author:
-    - SQLite Collection Contributors
+    - SQLite Collection Contributors (@sqlite-contributors)
 options:
     db:
         description:
@@ -46,7 +41,7 @@ options:
     state:
         description:
             - Whether the table should exist or not
-        choices: [ absent, present, info ]
+        choices: [ absent, present ]
         default: present
         type: str
     columns:
@@ -63,6 +58,11 @@ options:
     cascade:
         description:
             - Use CASCADE when dropping table (affects foreign keys)
+        type: bool
+        default: false
+    gather_info:
+        description:
+            - Gather and return detailed information about the table
         type: bool
         default: false
 requirements:
@@ -94,7 +94,8 @@ EXAMPLES = '''
   cursor.sqlite.sqlite_table:
     db: /tmp/example.db
     name: users
-    state: info
+    state: present
+    gather_info: true
   register: table_info
 
 - name: Drop table
@@ -122,20 +123,24 @@ exists:
     sample: true
 columns:
     description: Table column information
-    returned: when state=info
+    returned: when gather_info=true
     type: list
     sample: [{"name": "id", "type": "INTEGER", "notnull": 1, "pk": 1}]
 row_count:
     description: Number of rows in the table
-    returned: when state=info and table exists
+    returned: when gather_info=true and table exists
     type: int
     sample: 42
 schema:
     description: CREATE TABLE statement for the table
-    returned: when state=info and table exists
+    returned: when gather_info=true and table exists
     type: str
     sample: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)"
 '''
+
+import os
+import sqlite3
+from ansible.module_utils.basic import AnsibleModule
 
 
 def table_exists(cursor, table_name):
@@ -208,10 +213,11 @@ def main():  # pylint: disable=too-many-branches
         argument_spec={
             "db": {"required": True, "type": 'path'},
             "name": {"required": True, "type": 'str'},
-            "state": {"default": 'present', "choices": ['absent', 'present', 'info']},
+            "state": {"default": 'present', "choices": ['absent', 'present']},
             "columns": {"type": 'list', "elements": 'dict'},
             "if_not_exists": {"type": 'bool', "default": True},
-            "cascade": {"type": 'bool', "default": False}
+            "cascade": {"type": 'bool', "default": False},
+            "gather_info": {"type": 'bool', "default": False}
         },
         supports_check_mode=True,
         required_if=[
@@ -225,6 +231,7 @@ def main():  # pylint: disable=too-many-branches
     columns = module.params['columns']
     if_not_exists = module.params['if_not_exists']
     cascade = module.params['cascade']
+    gather_info = module.params['gather_info']
 
     if not os.path.exists(db_path):
         module.fail_json(msg=f"Database file does not exist: {db_path}")
@@ -244,15 +251,12 @@ def main():  # pylint: disable=too-many-branches
         exists = table_exists(cursor, table_name)
         result['exists'] = exists
 
-        if state == 'info':
-            # Just return information about the table
-            if exists:
-                info = get_table_info(cursor, table_name)
-                result.update(info)
-            # For non-existent tables, don't set default values
-            # as they would be missing anyway
+        # Gather information if requested
+        if gather_info and exists:
+            info = get_table_info(cursor, table_name)
+            result.update(info)
 
-        elif state == 'present':
+        if state == 'present':
             if not exists:
                 if not module.check_mode:
                     create_table(cursor, table_name, columns, if_not_exists)

@@ -13,11 +13,6 @@ statements with support for parameterized queries and result fetching.
 
 from __future__ import absolute_import, division, print_function
 
-import os
-import sqlite3
-from ansible.module_utils.basic import AnsibleModule
-
-
 # pylint: disable=invalid-name
 __metaclass__ = type
 
@@ -31,7 +26,7 @@ description:
     - Return query results and execution statistics
 version_added: "1.0.0"
 author:
-    - SQLite Collection Contributors
+    - SQLite Collection Contributors (@sqlite-contributors)
 options:
     db:
         description:
@@ -135,6 +130,10 @@ changed:
     type: bool
     sample: true
 '''
+
+import os
+import sqlite3
+from ansible.module_utils.basic import AnsibleModule
 
 
 def execute_query(db_path, query, parameters=None, fetch='all', transaction=True):  # pylint: disable=too-many-branches,too-many-statements
