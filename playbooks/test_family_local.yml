@@ -1,0 +1,57 @@
+---
+- name: Create Family Database with Local Modules
+  hosts: localhost
+  gather_facts: false
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  
+  tasks:
+    - name: Create family database
+      sqlite_db:
+        path: "./family.db"
+        state: present
+        mode: '0644'
+      register: db_result
+
+    - name: Show database creation
+      debug:
+        msg: "Database created: {{ db_result.path if db_result.path is defined else './family.db' }}"
+
+    - name: Create siblings table
+      sqlite_table:
+        db: "./family.db"
+        name: siblings
+        state: present
+        columns:
+          - name: id
+            type: INTEGER
+            constraints: PRIMARY KEY AUTOINCREMENT
+          - name: name
+            type: TEXT
+            constraints: NOT NULL
+          - name: birth_order
+            type: INTEGER
+
+    - name: Insert siblings
+      sqlite_query:
+        db: "./family.db"
+        query: "INSERT INTO siblings (name, birth_order) VALUES (?, ?)"
+        parameters: ["{{ item.name }}", "{{ item.order }}"]
+      loop:
+        - { name: "David", order: 1 }
+        - { name: "Caryl", order: 2 }
+        - { name: "Joyce", order: 3 }
+        - { name: "Tom", order: 4 }
+        - { name: "Linda", order: 5 }
+        - { name: "Sharon", order: 6 }
+
+    - name: Show all siblings
+      sqlite_query:
+        db: "./family.db"
+        query: "SELECT id, name, birth_order FROM siblings ORDER BY birth_order"
+        fetch: all
+      register: all_siblings
+
+    - name: Display all siblings
+      debug:
+        msg: "{{ all_siblings.rows }}" 

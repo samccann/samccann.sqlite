@@ -166,3 +166,4 @@ cython_debug/
 # Ansible
 .ansible/
 venv/
+ansible.cfg
