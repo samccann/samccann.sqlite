@@ -34,8 +34,9 @@ class TestSqliteQueryFunctions:
             ):
                 execute_query("/missing/db.sqlite", "SELECT 1")
 
+    @patch("os.path.exists", return_value=True)
     @patch("sqlite3.connect")
-    def test_execute_query_select(self, mock_connect):
+    def test_execute_query_select(self, mock_connect, mock_exists):
         """Test execute_query with SELECT statement."""
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
@@ -57,8 +58,9 @@ class TestSqliteQueryFunctions:
             "SELECT id, name FROM users",
         )
 
+    @patch("os.path.exists", return_value=True)
     @patch("sqlite3.connect")
-    def test_execute_query_with_parameters(self, mock_connect):
+    def test_execute_query_with_parameters(self, mock_connect, mock_exists):
         """Test execute_query with parameters."""
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
@@ -77,8 +79,9 @@ class TestSqliteQueryFunctions:
             ["John"],
         )
 
+    @patch("os.path.exists", return_value=True)
     @patch("sqlite3.connect")
-    def test_execute_query_modifying(self, mock_connect):
+    def test_execute_query_modifying(self, mock_connect, mock_exists):
         """Test execute_query with modifying statement."""
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
@@ -93,8 +96,9 @@ class TestSqliteQueryFunctions:
 
         assert result["changed"] is True
 
+    @patch("os.path.exists", return_value=True)
     @patch("sqlite3.connect")
-    def test_execute_query_error(self, mock_connect):
+    def test_execute_query_error(self, mock_connect, mock_exists):
         """Test execute_query with database error."""
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
@@ -105,8 +109,9 @@ class TestSqliteQueryFunctions:
         with pytest.raises(sqlite3.DatabaseError):
             execute_query("/test/db.sqlite", "INVALID SQL")
 
+    @patch("os.path.exists", return_value=True)
     @patch("sqlite3.connect")
-    def test_execute_query_fetch_none(self, mock_connect):
+    def test_execute_query_fetch_none(self, mock_connect, mock_exists):
         """Test execute_query with fetch=none."""
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
