@@ -1,4 +1,0 @@
-# TO-DO: add python packages that are required for this collection
-
-# Python packages required for this collection
-sqlite3  # Built-in Python module, but explicitly listing for clarity
