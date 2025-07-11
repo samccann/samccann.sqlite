@@ -62,7 +62,7 @@ requirements:
 
 EXAMPLES = '''
 - name: Create a table
-  cursor.sqlite.sqlite_query:
+  samccann.sqlite.sqlite_query:
     db: /tmp/example.db
     query: |
       CREATE TABLE IF NOT EXISTS users (
@@ -72,7 +72,7 @@ EXAMPLES = '''
       )
 
 - name: Insert data with parameters
-  cursor.sqlite.sqlite_query:
+  samccann.sqlite.sqlite_query:
     db: /tmp/example.db
     query: "INSERT INTO users (name, email) VALUES (?, ?)"
     parameters:
@@ -80,14 +80,14 @@ EXAMPLES = '''
       - "john@example.com"
 
 - name: Select all users
-  cursor.sqlite.sqlite_query:
+  samccann.sqlite.sqlite_query:
     db: /tmp/example.db
     query: "SELECT * FROM users"
     fetch: all
   register: users_result
 
 - name: Update with transaction
-  cursor.sqlite.sqlite_query:
+  samccann.sqlite.sqlite_query:
     db: /tmp/example.db
     query: "UPDATE users SET email = ? WHERE name = ?"
     parameters:
@@ -96,7 +96,7 @@ EXAMPLES = '''
     transaction: true
 
 - name: Get table count
-  cursor.sqlite.sqlite_query:
+  samccann.sqlite.sqlite_query:
     db: /tmp/example.db
     query: "SELECT COUNT(*) as total FROM users"
     fetch: one
@@ -142,33 +142,33 @@ def execute_query(db_path, query, parameters=None, fetch='all', transaction=True
         raise sqlite3.DatabaseError(f"Database file does not exist: {db_path}")
 
     conn = None
-    cursor = None
+    samccann = None
     results = {}
 
     try:
         conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        samccann = conn.samccann()
 
         # Enable row factory to get column names
         conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+        samccann = conn.samccann()
 
         # Execute query
         if parameters:
-            cursor.execute(query, parameters)
+            samccann.execute(query, parameters)
         else:
-            cursor.execute(query)
+            samccann.execute(query)
 
-        results['rowcount'] = cursor.rowcount
+        results['rowcount'] = samccann.rowcount
 
         # Fetch results based on fetch parameter
         if fetch != 'none':
             query_lower = query.lower().strip()
             if query_lower.startswith('select') or 'returning' in query_lower:
                 if fetch == 'all':
-                    rows = cursor.fetchall()
+                    rows = samccann.fetchall()
                 elif fetch == 'one':
-                    rows = cursor.fetchone()
+                    rows = samccann.fetchone()
                     rows = [rows] if rows else []
                 else:
                     rows = []
@@ -184,7 +184,7 @@ def execute_query(db_path, query, parameters=None, fetch='all', transaction=True
         # Determine if this was a modifying query
         modifying_keywords = ['insert', 'update', 'delete', 'create', 'drop', 'alter']
         is_modifying = any(keyword in query.lower() for keyword in modifying_keywords)
-        results['changed'] = is_modifying and cursor.rowcount > 0
+        results['changed'] = is_modifying and samccann.rowcount > 0
 
         if transaction:
             conn.commit()
@@ -198,8 +198,8 @@ def execute_query(db_path, query, parameters=None, fetch='all', transaction=True
             conn.rollback()
         raise error
     finally:
-        if cursor:
-            cursor.close()
+        if samccann:
+            samccann.close()
         if conn:
             conn.close()
 

@@ -65,7 +65,7 @@ notes:
 
 EXAMPLES = '''
 - name: Create SQLite database
-  cursor.sqlite.sqlite_db:
+  samccann.sqlite.sqlite_db:
     path: /tmp/example.db
     state: present
     mode: '0640'
@@ -73,12 +73,12 @@ EXAMPLES = '''
     group: mygroup
 
 - name: Remove SQLite database
-  cursor.sqlite.sqlite_db:
+  samccann.sqlite.sqlite_db:
     path: /tmp/example.db
     state: absent
 
 - name: Create database with backup
-  cursor.sqlite.sqlite_db:
+  samccann.sqlite.sqlite_db:
     path: /tmp/production.db
     state: present
     backup: true

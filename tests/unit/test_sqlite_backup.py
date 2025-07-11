@@ -33,22 +33,22 @@ class TestSqliteBackupFunctions:
     def test_verify_sqlite_db_valid(self, mock_connect):
         """Test verify_sqlite_db with valid database."""
         mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_cursor.fetchone.return_value = ['ok']
-        mock_conn.cursor.return_value = mock_cursor
+        mock_samccann = MagicMock()
+        mock_samccann.fetchone.return_value = ['ok']
+        mock_conn.samccann.return_value = mock_samccann
         mock_connect.return_value = mock_conn
 
         assert verify_sqlite_db('/test/db.sqlite') is True
-        mock_cursor.execute.assert_called_once_with("PRAGMA integrity_check")
+        mock_samccann.execute.assert_called_once_with("PRAGMA integrity_check")
         mock_conn.close.assert_called_once()
 
     @patch('sqlite3.connect')
     def test_verify_sqlite_db_invalid(self, mock_connect):
         """Test verify_sqlite_db with invalid database."""
         mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_cursor.fetchone.return_value = ['error']
-        mock_conn.cursor.return_value = mock_cursor
+        mock_samccann = MagicMock()
+        mock_samccann.fetchone.return_value = ['error']
+        mock_conn.samccann.return_value = mock_samccann
         mock_connect.return_value = mock_conn
 
         assert verify_sqlite_db('/test/db.sqlite') is False

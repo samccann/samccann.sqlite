@@ -1,5 +1,5 @@
 ---
-# defaults file for cursor.sqlite.run
+# defaults file for samccann.sqlite.run
 
 # SQLite database configuration
 run_sqlite_db_path: /tmp/example.db

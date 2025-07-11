@@ -1,4 +1,4 @@
-cursor.sqlite run Role
+samccann.sqlite run Role
 ========================
 
 A brief description of the role goes here.
@@ -27,20 +27,20 @@ Including an example of how to use your role (for instance, with variables passe
 - name: Execute tasks on servers
   hosts: servers
   roles:
-    - role: cursor.sqlite.run
+    - role: samccann.sqlite.run
       run_x: 42
 ```
 
 Another way to consume this role would be:
 
 ```yaml
-- name: Initialize the run role from cursor.sqlite
+- name: Initialize the run role from samccann.sqlite
   hosts: servers
   gather_facts: false
   tasks:
     - name: Trigger invocation of run role
       ansible.builtin.include_role:
-        name: cursor.sqlite.run
+        name: samccann.sqlite.run
       vars:
         run_x: 42
 ```

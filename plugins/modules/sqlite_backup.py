@@ -68,28 +68,28 @@ requirements:
 
 EXAMPLES = '''
 - name: Create database backup
-  cursor.sqlite.sqlite_backup:
+  samccann.sqlite.sqlite_backup:
     src: /var/lib/app/production.db
     dest: /backup/production_backup.db
     operation: backup
     verify_backup: true
 
 - name: Create compressed backup
-  cursor.sqlite.sqlite_backup:
+  samccann.sqlite.sqlite_backup:
     src: /var/lib/app/production.db
     dest: /backup/production_backup.db.gz
     operation: backup
     compress: true
 
 - name: Restore database from backup
-  cursor.sqlite.sqlite_backup:
+  samccann.sqlite.sqlite_backup:
     src: /backup/production_backup.db
     dest: /var/lib/app/restored.db
     operation: restore
     overwrite: true
 
 - name: Verify backup integrity
-  cursor.sqlite.sqlite_backup:
+  samccann.sqlite.sqlite_backup:
     src: /backup/production_backup.db
     dest: /dev/null
     operation: verify
@@ -164,9 +164,9 @@ def verify_sqlite_db(db_path):
     """Verify SQLite database integrity"""
     try:
         conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA integrity_check")
-        result = cursor.fetchone()
+        samccann = conn.samccann()
+        samccann.execute("PRAGMA integrity_check")
+        result = samccann.fetchone()
         conn.close()
         return result[0] == 'ok'
     except sqlite3.Error:
