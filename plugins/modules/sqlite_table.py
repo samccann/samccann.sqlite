@@ -72,7 +72,7 @@ requirements:
 
 EXAMPLES = '''
 - name: Create users table
-  cursor.sqlite.sqlite_table:
+  samccann.sqlite.sqlite_table:
     db: /tmp/example.db
     name: users
     state: present
@@ -91,7 +91,7 @@ EXAMPLES = '''
         constraints: DEFAULT CURRENT_TIMESTAMP
 
 - name: Get table information
-  cursor.sqlite.sqlite_table:
+  samccann.sqlite.sqlite_table:
     db: /tmp/example.db
     name: users
     state: present
@@ -99,7 +99,7 @@ EXAMPLES = '''
   register: table_info
 
 - name: Drop table
-  cursor.sqlite.sqlite_table:
+  samccann.sqlite.sqlite_table:
     db: /tmp/example.db
     name: old_table
     state: absent
@@ -143,40 +143,40 @@ import sqlite3
 from ansible.module_utils.basic import AnsibleModule
 
 
-def table_exists(cursor, table_name):
+def table_exists(samccann, table_name):
     """Check if table exists"""
-    cursor.execute("""
+    samccann.execute("""
         SELECT name FROM sqlite_master
         WHERE type='table' AND name=?
     """, (table_name,))
-    return cursor.fetchone() is not None
+    return samccann.fetchone() is not None
 
 
-def get_table_info(cursor, table_name):
+def get_table_info(samccann, table_name):
     """Get detailed table information"""
     info = {}
 
     # Get column information
-    cursor.execute(f"PRAGMA table_info({table_name})")
-    columns = cursor.fetchall()
-    info['columns'] = [dict(zip([col[0] for col in cursor.description], row)) for row in columns]
+    samccann.execute(f"PRAGMA table_info({table_name})")
+    columns = samccann.fetchall()
+    info['columns'] = [dict(zip([col[0] for col in samccann.description], row)) for row in columns]
 
     # Get row count
-    cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
-    info['row_count'] = cursor.fetchone()[0]
+    samccann.execute(f"SELECT COUNT(*) FROM {table_name}")
+    info['row_count'] = samccann.fetchone()[0]
 
     # Get table schema
-    cursor.execute("""
+    samccann.execute("""
         SELECT sql FROM sqlite_master
         WHERE type='table' AND name=?
     """, (table_name,))
-    result = cursor.fetchone()
+    result = samccann.fetchone()
     info['schema'] = result[0] if result else None
 
     return info
 
 
-def create_table(cursor, table_name, columns, if_not_exists=True):
+def create_table(samccann, table_name, columns, if_not_exists=True):
     """Create table with specified columns"""
     if_not_exists_clause = "IF NOT EXISTS " if if_not_exists else ""
 
@@ -191,11 +191,11 @@ def create_table(cursor, table_name, columns, if_not_exists=True):
     columns_sql = ", ".join(column_defs)
     sql = f"CREATE TABLE {if_not_exists_clause}{table_name} ({columns_sql})"
 
-    cursor.execute(sql)
+    samccann.execute(sql)
     return sql
 
 
-def drop_table(cursor, table_name, cascade=False):
+def drop_table(samccann, table_name, cascade=False):
     """Drop table"""
     # SQLite doesn't support CASCADE, but we can check for it
     if cascade:
@@ -203,7 +203,7 @@ def drop_table(cursor, table_name, cascade=False):
         pass
 
     sql = f"DROP TABLE {table_name}"
-    cursor.execute(sql)
+    samccann.execute(sql)
     return sql
 
 
@@ -242,24 +242,24 @@ def main():  # pylint: disable=too-many-branches
     }
 
     conn = None
-    cursor = None
+    samccann = None
 
     try:
         conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        samccann = conn.samccann()
 
-        exists = table_exists(cursor, table_name)
+        exists = table_exists(samccann, table_name)
         result['exists'] = exists
 
         # Gather information if requested
         if gather_info and exists:
-            info = get_table_info(cursor, table_name)
+            info = get_table_info(samccann, table_name)
             result.update(info)
 
         if state == 'present':
             if not exists:
                 if not module.check_mode:
-                    create_table(cursor, table_name, columns, if_not_exists)
+                    create_table(samccann, table_name, columns, if_not_exists)
                     conn.commit()
                 result['changed'] = True
                 result['exists'] = True
@@ -267,7 +267,7 @@ def main():  # pylint: disable=too-many-branches
         elif state == 'absent':
             if exists:
                 if not module.check_mode:
-                    drop_table(cursor, table_name, cascade)
+                    drop_table(samccann, table_name, cascade)
                     conn.commit()
                 result['changed'] = True
                 result['exists'] = False
@@ -277,8 +277,8 @@ def main():  # pylint: disable=too-many-branches
     except OSError as error:
         module.fail_json(msg=f"OS Error: {str(error)}")
     finally:
-        if cursor:
-            cursor.close()
+        if samccann:
+            samccann.close()
         if conn:
             conn.close()
 

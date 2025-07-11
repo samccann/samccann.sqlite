@@ -31,14 +31,14 @@ class TestSqliteQueryFunctions:
         """Test execute_query with SELECT and fetch=all."""
         mock_exists.return_value = True
         mock_conn = MagicMock()
-        mock_cursor = MagicMock()
+        mock_samccann = MagicMock()
         mock_row = MagicMock(spec=sqlite3.Row)
         mock_row.keys.return_value = ['id', 'name']
         mock_row.__iter__ = lambda self: iter([1, 'John'])
         
-        mock_cursor.fetchall.return_value = [mock_row]
-        mock_cursor.rowcount = 1
-        mock_conn.cursor.return_value = mock_cursor
+        mock_samccann.fetchall.return_value = [mock_row]
+        mock_samccann.rowcount = 1
+        mock_conn.samccann.return_value = mock_samccann
         mock_connect.return_value = mock_conn
         
         result = execute_query('/test/db.sqlite', 'SELECT id, name FROM users')
@@ -47,7 +47,7 @@ class TestSqliteQueryFunctions:
         assert result['columns'] == ['id', 'name']
         assert result['rows'] == [[1, 'John']]
         assert result['changed'] is False
-        mock_cursor.execute.assert_called_once_with('SELECT id, name FROM users')
+        mock_samccann.execute.assert_called_once_with('SELECT id, name FROM users')
         mock_conn.commit.assert_called_once()
 
     @patch('os.path.exists')
@@ -56,15 +56,15 @@ class TestSqliteQueryFunctions:
         """Test execute_query with parameterized query."""
         mock_exists.return_value = True
         mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_cursor.rowcount = 1
-        mock_conn.cursor.return_value = mock_cursor
+        mock_samccann = MagicMock()
+        mock_samccann.rowcount = 1
+        mock_conn.samccann.return_value = mock_samccann
         mock_connect.return_value = mock_conn
         
         result = execute_query('/test/db.sqlite', 'INSERT INTO users (name, email) VALUES (?, ?)', 
                              parameters=['John', 'john@example.com'])
         
-        mock_cursor.execute.assert_called_once_with('INSERT INTO users (name, email) VALUES (?, ?)', 
+        mock_samccann.execute.assert_called_once_with('INSERT INTO users (name, email) VALUES (?, ?)', 
                                                    ['John', 'john@example.com'])
         assert result['changed'] is True
 
@@ -74,9 +74,9 @@ class TestSqliteQueryFunctions:
         """Test execute_query with INSERT operation."""
         mock_exists.return_value = True
         mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_cursor.rowcount = 1
-        mock_conn.cursor.return_value = mock_cursor
+        mock_samccann = MagicMock()
+        mock_samccann.rowcount = 1
+        mock_conn.samccann.return_value = mock_samccann
         mock_connect.return_value = mock_conn
         
         result = execute_query('/test/db.sqlite', 'INSERT INTO users (name) VALUES ("Alice")')
@@ -90,9 +90,9 @@ class TestSqliteQueryFunctions:
         """Test execute_query with SQLite error."""
         mock_exists.return_value = True
         mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_cursor.execute.side_effect = sqlite3.Error("SQL syntax error")
-        mock_conn.cursor.return_value = mock_cursor
+        mock_samccann = MagicMock()
+        mock_samccann.execute.side_effect = sqlite3.Error("SQL syntax error")
+        mock_conn.samccann.return_value = mock_samccann
         mock_connect.return_value = mock_conn
         
         with pytest.raises(sqlite3.DatabaseError, match="SQLite error: SQL syntax error"):
@@ -106,10 +106,10 @@ class TestSqliteQueryFunctions:
         """Test execute_query with empty SELECT result."""
         mock_exists.return_value = True
         mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_cursor.fetchall.return_value = []
-        mock_cursor.rowcount = 0
-        mock_conn.cursor.return_value = mock_cursor
+        mock_samccann = MagicMock()
+        mock_samccann.fetchall.return_value = []
+        mock_samccann.rowcount = 0
+        mock_conn.samccann.return_value = mock_samccann
         mock_connect.return_value = mock_conn
         
         result = execute_query('/test/db.sqlite', 'SELECT * FROM empty_table')

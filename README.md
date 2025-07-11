@@ -1,6 +1,6 @@
 # Cursor SQLite Collection
 
-This repository contains the `cursor.sqlite` Ansible Collection for managing SQLite databases.
+This repository contains the `samccann.sqlite` Ansible Collection for managing SQLite databases.
 
 ## Description
 
@@ -21,25 +21,25 @@ The Cursor SQLite Collection provides comprehensive modules and roles for managi
 ## Installation
 
 ```bash
-ansible-galaxy collection install cursor.sqlite
+ansible-galaxy collection install samccann.sqlite
 ```
 
 You can also include it in a `requirements.yml` file:
 
 ```yaml
 collections:
-  - name: cursor.sqlite
+  - name: samccann.sqlite
 ```
 
 ## Modules
 
-### cursor.sqlite.sqlite_db
+### samccann.sqlite.sqlite_db
 
 Manage SQLite database files.
 
 ```yaml
 - name: Create SQLite database
-  cursor.sqlite.sqlite_db:
+  samccann.sqlite.sqlite_db:
     path: /var/lib/app/myapp.db
     state: present
     mode: '0640'
@@ -47,13 +47,13 @@ Manage SQLite database files.
     group: appgroup
 ```
 
-### cursor.sqlite.sqlite_table
+### samccann.sqlite.sqlite_table
 
 Manage database tables.
 
 ```yaml
 - name: Create users table
-  cursor.sqlite.sqlite_table:
+  samccann.sqlite.sqlite_table:
     db: /var/lib/app/myapp.db
     name: users
     state: present
@@ -68,13 +68,13 @@ Manage database tables.
         type: TEXT
 ```
 
-### cursor.sqlite.sqlite_query
+### samccann.sqlite.sqlite_query
 
 Execute SQL queries.
 
 ```yaml
 - name: Insert user data
-  cursor.sqlite.sqlite_query:
+  samccann.sqlite.sqlite_query:
     db: /var/lib/app/myapp.db
     query: "INSERT INTO users (username, email) VALUES (?, ?)"
     parameters:
@@ -82,20 +82,20 @@ Execute SQL queries.
       - "john@example.com"
 
 - name: Select all users
-  cursor.sqlite.sqlite_query:
+  samccann.sqlite.sqlite_query:
     db: /var/lib/app/myapp.db
     query: "SELECT * FROM users"
     fetch: all
   register: all_users
 ```
 
-### cursor.sqlite.sqlite_backup
+### samccann.sqlite.sqlite_backup
 
 Backup and restore databases.
 
 ```yaml
 - name: Create compressed backup
-  cursor.sqlite.sqlite_backup:
+  samccann.sqlite.sqlite_backup:
     src: /var/lib/app/myapp.db
     dest: /backup/myapp_backup.db.gz
     operation: backup
@@ -103,7 +103,7 @@ Backup and restore databases.
     verify_backup: true
 
 - name: Restore from backup
-  cursor.sqlite.sqlite_backup:
+  samccann.sqlite.sqlite_backup:
     src: /backup/myapp_backup.db.gz
     dest: /var/lib/app/restored.db
     operation: restore
@@ -112,7 +112,7 @@ Backup and restore databases.
 
 ## Roles
 
-### cursor.sqlite.run
+### samccann.sqlite.run
 
 A complete role that demonstrates SQLite database management operations.
 
@@ -130,7 +130,7 @@ A complete role that demonstrates SQLite database management operations.
 ```yaml
 - name: Run SQLite database setup
   include_role:
-    name: cursor.sqlite.run
+    name: samccann.sqlite.run
   vars:
     run_sqlite_db_path: /var/lib/myapp/database.db
     run_create_backup: true
@@ -151,13 +151,13 @@ A complete role that demonstrates SQLite database management operations.
   hosts: localhost
   tasks:
     - name: Create application database
-      cursor.sqlite.sqlite_db:
+      samccann.sqlite.sqlite_db:
         path: /var/lib/myapp/app.db
         state: present
         mode: '0640'
 
     - name: Create application tables
-      cursor.sqlite.sqlite_table:
+      samccann.sqlite.sqlite_table:
         db: /var/lib/myapp/app.db
         name: "{{ item.name }}"
         state: present
@@ -194,7 +194,7 @@ A complete role that demonstrates SQLite database management operations.
   hosts: localhost
   tasks:
     - name: Create daily backup
-      cursor.sqlite.sqlite_backup:
+      samccann.sqlite.sqlite_backup:
         src: /var/lib/myapp/app.db
         dest: "/backup/app_{{ ansible_date_time.date }}.db.gz"
         operation: backup
@@ -202,13 +202,13 @@ A complete role that demonstrates SQLite database management operations.
         verify_backup: true
 
     - name: Check database integrity
-      cursor.sqlite.sqlite_backup:
+      samccann.sqlite.sqlite_backup:
         src: /var/lib/myapp/app.db
         dest: /dev/null
         operation: verify
 
     - name: Get database statistics
-      cursor.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: /var/lib/myapp/app.db
         query: |
           SELECT 
@@ -236,6 +236,8 @@ A complete role that demonstrates SQLite database management operations.
 ## Contributing
 
 Please read [CONTRIBUTING](CONTRIBUTING) for details on our code of conduct and the process for submitting pull requests.
+
+This collection was initially drafted  by assisted AI via Cursor and the claude-4-sonnet model.
 
 ## License
 

@@ -1,5 +1,5 @@
 ---
-name: Release cursor.sqlite
+name: Release samccann.sqlite
 
 on: # yamllint disable-line rule:truthy
   release:

@@ -1,7 +1,7 @@
 galaxy_info:
   author: foo
-  description: cursor.sqlite run Role
-  company: cursor
+  description: samccann.sqlite run Role
+  company: samccann
 
   # If the issue tracker for your role is not on github, uncomment the
   # next line and provide a value

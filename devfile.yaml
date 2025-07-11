@@ -1,6 +1,6 @@
 schemaVersion: 2.2.2
 metadata:
-  name: cursor.sqlite-05a8bfa6
+  name: samccann.sqlite-05a8bfa6
 components:
   - name: tooling-container
     container:

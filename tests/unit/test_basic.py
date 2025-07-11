@@ -1,4 +1,4 @@
-"""Basic unit tests for cursor.sqlite collection."""
+"""Basic unit tests for samccann.sqlite collection."""
 
 import os
 import sys

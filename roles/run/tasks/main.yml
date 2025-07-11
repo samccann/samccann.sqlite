@@ -1,5 +1,5 @@
 ---
-# tasks file for cursor.sqlite.run
+# tasks file for samccann.sqlite.run
 
 # task example for debugging a value
 - name: Debug the value of my_variable
@@ -7,14 +7,14 @@
     msg: "The value of my_variable is {{ my_variable }}"
 
 - name: Create SQLite database
-  cursor.sqlite.sqlite_db:
+  samccann.sqlite.sqlite_db:
     path: "{{ run_sqlite_db_path }}"
     state: present
     mode: "{{ run_sqlite_db_permissions }}"
   register: db_creation
 
 - name: Create users table
-  cursor.sqlite.sqlite_table:
+  samccann.sqlite.sqlite_table:
     db: "{{ run_sqlite_db_path }}"
     name: users
     state: present
@@ -34,7 +34,7 @@
   when: db_creation is succeeded
 
 - name: Insert sample data
-  cursor.sqlite.sqlite_query:
+  samccann.sqlite.sqlite_query:
     db: "{{ run_sqlite_db_path }}"
     query: "INSERT OR IGNORE INTO users (username, email) VALUES (?, ?)"
     parameters:
@@ -44,7 +44,7 @@
   when: run_sample_users is defined and run_sample_users | length > 0
 
 - name: Get table information
-  cursor.sqlite.sqlite_table:
+  samccann.sqlite.sqlite_table:
     db: "{{ run_sqlite_db_path }}"
     name: users
     state: info
@@ -59,7 +59,7 @@
       - "Columns: {{ users_table_info.columns | default([]) }}"
 
 - name: Create database backup
-  cursor.sqlite.sqlite_backup:
+  samccann.sqlite.sqlite_backup:
     src: "{{ run_sqlite_db_path }}"
     dest: "{{ run_sqlite_backup_path }}"
     operation: backup

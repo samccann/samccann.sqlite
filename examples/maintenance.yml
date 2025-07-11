@@ -19,7 +19,7 @@
         mode: '0755'
 
     - name: Check database integrity
-      cursor.sqlite.sqlite_backup:
+      samccann.sqlite.sqlite_backup:
         src: "{{ db_path }}"
         dest: /dev/null
         operation: verify
@@ -36,7 +36,7 @@
       when: not integrity_check.verified
 
     - name: Get database statistics
-      cursor.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: |
           SELECT 
@@ -58,7 +58,7 @@
       loop: "{{ db_stats.rows }}"
 
     - name: Get table statistics
-      cursor.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: |
           SELECT 
@@ -77,7 +77,7 @@
       loop: "{{ table_stats.rows }}"
 
     - name: Create timestamped backup
-      cursor.sqlite.sqlite_backup:
+      samccann.sqlite.sqlite_backup:
         src: "{{ db_path }}"
         dest: "{{ backup_dir }}/backup_{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '') }}.db.gz"
         operation: backup
@@ -114,20 +114,20 @@
         msg: "Removed {{ old_backups.files | length }} old backup(s)"
 
     - name: Optimize database (VACUUM)
-      cursor.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: "VACUUM"
         fetch: none
       register: vacuum_result
 
     - name: Update table statistics after VACUUM
-      cursor.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: "ANALYZE"
         fetch: none
 
     - name: Get post-optimization statistics
-      cursor.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: |
           SELECT 
@@ -145,7 +145,7 @@
           - "Unused pages: {{ post_stats.rows[0][1] }}"
 
     - name: Create verification backup after maintenance
-      cursor.sqlite.sqlite_backup:
+      samccann.sqlite.sqlite_backup:
         src: "{{ db_path }}"
         dest: "{{ backup_dir }}/post_maintenance_{{ ansible_date_time.epoch }}.db"
         operation: backup
