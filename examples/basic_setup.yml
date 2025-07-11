@@ -9,19 +9,19 @@
   vars:
     app_db_path: /tmp/myapp.db
     backup_dir: /tmp/backups
-    
+
   tasks:
     - name: Ensure backup directory exists
       ansible.builtin.file:
         path: "{{ backup_dir }}"
         state: directory
-        mode: '0755'
+        mode: "0755"
 
     - name: Create SQLite database
       samccann.sqlite.sqlite_db:
         path: "{{ app_db_path }}"
         state: present
-        mode: '0640'
+        mode: "0640"
       register: db_created
 
     - name: Create users table
@@ -84,7 +84,7 @@
       samccann.sqlite.sqlite_query:
         db: "{{ app_db_path }}"
         query: |
-          INSERT OR IGNORE INTO posts (user_id, title, content) 
+          INSERT OR IGNORE INTO posts (user_id, title, content)
           SELECT users.id, ?, ? FROM users WHERE users.username = ?
         parameters:
           - "{{ item.title }}"
@@ -102,7 +102,7 @@
       samccann.sqlite.sqlite_query:
         db: "{{ app_db_path }}"
         query: |
-          SELECT 
+          SELECT
             u.username,
             u.email,
             COUNT(p.id) as post_count
@@ -128,7 +128,7 @@
 
     - name: Display backup information
       ansible.builtin.debug:
-        msg: 
+        msg:
           - "Backup created: {{ backup_result.dest }}"
           - "Backup size: {{ backup_result.dest_size }} bytes"
-          - "Backup verified: {{ backup_result.verified }}" 
+          - "Backup verified: {{ backup_result.verified }}"

@@ -1,13 +1,15 @@
 # Family Database Playbooks
 
-This directory contains several Ansible playbooks that demonstrate the usage of the `community.sqlite` collection to create a family database with sibling information.
+This directory contains several Ansible playbooks that demonstrate the usage of the `samccann.sqlite` collection to create a family database with sibling information.
 
 ## 📁 Available Playbooks
 
 ### 1. `family_database_simple.yml` (Recommended)
+
 A comprehensive, production-ready playbook that creates a family database with 6 siblings.
 
 **Features:**
+
 - Creates SQLite database named `family.db`
 - Creates `siblings` table with comprehensive schema
 - Inserts 6 sibling records with names, ages, and favorite colors
@@ -16,21 +18,26 @@ A comprehensive, production-ready playbook that creates a family database with 6
 - Includes verification commands
 
 **Usage:**
+
 ```bash
 cd playbooks
 ansible-playbook family_database_simple.yml
 ```
 
 ### 2. `create_family_db.yml`
+
 A basic version that demonstrates the core functionality.
 
 ### 3. `test_family_local.yml`
+
 A minimal test version for development and testing.
 
 ### 4. `family_database_complete.yml`
+
 An advanced version with additional analytics and features.
 
 ### 5. `family_database.yml`
+
 A hybrid version that supports both local modules and FQCN usage.
 
 ## 📊 Database Schema
@@ -53,7 +60,7 @@ CREATE TABLE siblings (
 The database is populated with the following siblings:
 
 | Birth Order | Name   | Age | Favorite Color |
-|-------------|--------|-----|----------------|
+| ----------- | ------ | --- | -------------- |
 | 1           | David  | 65  | Blue           |
 | 2           | Caryl  | 63  | Green          |
 | 3           | Joyce  | 61  | Purple         |
@@ -70,11 +77,13 @@ The database is populated with the following siblings:
 ## 🚀 Quick Start
 
 1. **Navigate to the playbooks directory:**
+
    ```bash
    cd /path/to/ansible_collections/community/sqlite/playbooks
    ```
 
 2. **Run the main playbook:**
+
    ```bash
    ansible-playbook family_database_simple.yml
    ```
@@ -94,21 +103,25 @@ After running the playbook, you'll have:
 ## 🔍 Verification Commands
 
 ### View all siblings:
+
 ```bash
 sqlite3 family.db "SELECT birth_order, name, age, favorite_color FROM siblings ORDER BY birth_order;"
 ```
 
 ### View table schema:
+
 ```bash
 sqlite3 family.db ".schema siblings"
 ```
 
 ### View all tables:
+
 ```bash
 sqlite3 family.db ".tables"
 ```
 
 ### Get database info:
+
 ```bash
 sqlite3 family.db ".dbinfo"
 ```
@@ -116,6 +129,7 @@ sqlite3 family.db ".dbinfo"
 ## 🛠 Configuration
 
 ### Custom Database Path
+
 You can specify a custom database location:
 
 ```bash
@@ -123,6 +137,7 @@ ansible-playbook family_database_simple.yml -e database_path="/custom/path/famil
 ```
 
 ### Custom Backup Path
+
 You can specify a custom backup location:
 
 ```bash
@@ -155,16 +170,19 @@ When you run the playbook, you'll see output like:
 To test that everything works correctly:
 
 1. **Navigate to playbooks directory:**
+
    ```bash
    cd playbooks
    ```
 
 2. **Run the playbook:**
+
    ```bash
    ansible-playbook family_database_simple.yml
    ```
 
 3. **Verify the data:**
+
    ```bash
    sqlite3 family.db "SELECT COUNT(*) FROM siblings;"
    # Should return: 6
@@ -178,9 +196,11 @@ To test that everything works correctly:
 ## 🔧 Troubleshooting
 
 ### Module Not Found Errors
+
 If you get "module not found" errors:
 
 1. **For local development** (running from collection directory):
+
    ```bash
    cd /path/to/ansible_collections/community/sqlite/playbooks
    ansible-playbook family_database_simple.yml
@@ -192,10 +212,13 @@ If you get "module not found" errors:
    ```
 
 ### Permission Errors
+
 Ensure you have write permissions in the directory where you're running the playbook.
 
 ### SQLite Command Not Found
+
 Install SQLite tools:
+
 ```bash
 # Ubuntu/Debian
 sudo apt-get install sqlite3
@@ -220,7 +243,7 @@ siblings_data:
 These playbooks demonstrate:
 
 - **Database Creation**: Using `sqlite_db` module
-- **Table Management**: Using `sqlite_table` module  
+- **Table Management**: Using `sqlite_table` module
 - **Data Insertion**: Using `sqlite_query` module with parameters
 - **Backup Operations**: Using `sqlite_backup` module
 - **Data Retrieval**: Querying and displaying results
@@ -235,4 +258,4 @@ These playbooks demonstrate:
 
 ## 🤝 Contributing
 
-Feel free to modify these playbooks to suit your needs or contribute improvements back to the collection! 
+Feel free to modify these playbooks to suit your needs or contribute improvements back to the collection!

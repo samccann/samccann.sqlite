@@ -19,7 +19,7 @@ tags: ["database", "sqlite", "sql", "backup", "linux", "tools"]
 # Collection dependencies
 dependencies:
   "ansible.utils": "*" # note: "*" selects the latest version available
-  "community.general": "*"  # For additional utility modules
+  "community.general": "*" # For additional utility modules
 
 repository: http://example.com/repository
 documentation: http://docs.example.com

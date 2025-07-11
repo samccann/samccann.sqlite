@@ -3,7 +3,7 @@
 
 # SQLite database configuration
 run_sqlite_db_path: /tmp/example.db
-run_sqlite_db_permissions: '0640'
+run_sqlite_db_permissions: "0640"
 run_sqlite_backup_path: /tmp/example_backup.db
 
 # Control whether to create backups

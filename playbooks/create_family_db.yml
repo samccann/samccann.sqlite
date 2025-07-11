@@ -7,18 +7,18 @@
 
   tasks:
     - name: Create family database
-      community.sqlite.sqlite_db:
+      samccann.sqlite.sqlite_db:
         path: "{{ db_path }}"
         state: present
-        mode: '0644'
+        mode: "0644"
       register: db_result
 
     - name: Show database creation result
-      debug:
+      ansible.builtin.debug:
         msg: "Database created: {{ db_path }}"
 
     - name: Create siblings table
-      community.sqlite.sqlite_table:
+      samccann.sqlite.sqlite_table:
         db: "{{ db_path }}"
         name: siblings
         state: present
@@ -33,48 +33,48 @@
             type: INTEGER
 
     - name: Insert David
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: "INSERT INTO siblings (name, birth_order) VALUES (?, ?)"
         parameters: ["David", 1]
 
     - name: Insert Caryl
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: "INSERT INTO siblings (name, birth_order) VALUES (?, ?)"
         parameters: ["Caryl", 2]
 
     - name: Insert Joyce
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: "INSERT INTO siblings (name, birth_order) VALUES (?, ?)"
         parameters: ["Joyce", 3]
 
     - name: Insert Tom
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: "INSERT INTO siblings (name, birth_order) VALUES (?, ?)"
         parameters: ["Tom", 4]
 
     - name: Insert Linda
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: "INSERT INTO siblings (name, birth_order) VALUES (?, ?)"
         parameters: ["Linda", 5]
 
     - name: Insert Sharon
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: "INSERT INTO siblings (name, birth_order) VALUES (?, ?)"
         parameters: ["Sharon", 6]
 
     - name: Show all siblings
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: "SELECT * FROM siblings ORDER BY birth_order"
         fetch: all
       register: all_siblings
 
     - name: Display siblings
-      debug:
-        msg: "{{ all_siblings.rows }}" 
+      ansible.builtin.debug:
+        msg: "{{ all_siblings.rows }}"

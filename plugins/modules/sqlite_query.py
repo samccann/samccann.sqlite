@@ -2,21 +2,24 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: (c) 2024, SQLite Collection Contributors
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """
 Ansible module for executing SQL queries on SQLite databases.
 
-This module provides functionality to execute SELECT, INSERT, UPDATE, DELETE and other SQL
-statements with support for parameterized queries and result fetching.
+This module provides functionality to execute SELECT, INSERT, UPDATE,
+DELETE and other SQL statements with support for parameterized queries and
+result fetching.
 """
 
 from __future__ import absolute_import, division, print_function
 
+
 # pylint: disable=invalid-name
 __metaclass__ = type
 
-DOCUMENTATION = '''
+DOCUMENTATION = """
 ---
 module: sqlite_query
 short_description: Execute SQL queries on SQLite databases
@@ -58,9 +61,9 @@ options:
 requirements:
     - python >= 3.6
     - sqlite3 (built-in Python module)
-'''
+"""
 
-EXAMPLES = '''
+EXAMPLES = """
 - name: Create a table
   samccann.sqlite.sqlite_query:
     db: /tmp/example.db
@@ -101,9 +104,9 @@ EXAMPLES = '''
     query: "SELECT COUNT(*) as total FROM users"
     fetch: one
   register: count_result
-'''
+"""
 
-RETURN = '''
+RETURN = """
 query:
     description: The executed SQL query
     returned: always
@@ -118,7 +121,10 @@ rows:
     description: Query results (for SELECT statements)
     returned: when fetch != 'none' and query returns data
     type: list
-    sample: [["1", "John Doe", "john@example.com"], ["2", "Jane Smith", "jane@example.com"]]
+    sample: [
+        ["1", "John Doe", "john@example.com"],
+        ["2", "Jane Smith", "jane@example.com"],
+    ]
 columns:
     description: Column names from the query result
     returned: when fetch != 'none' and query returns data
@@ -129,46 +135,55 @@ changed:
     returned: always
     type: bool
     sample: true
-'''
+"""
 
 import os
 import sqlite3
+
 from ansible.module_utils.basic import AnsibleModule
 
 
-def execute_query(db_path, query, parameters=None, fetch='all', transaction=True):  # pylint: disable=too-many-branches,too-many-statements
+def execute_query(
+    db_path,
+    query,
+    parameters=None,
+    fetch="all",
+    transaction=True,
+):  # pylint: disable=too-many-branches,too-many-statements
     """Execute SQL query on SQLite database"""
     if not os.path.exists(db_path):
-        raise sqlite3.DatabaseError(f"Database file does not exist: {db_path}")
+        raise sqlite3.DatabaseError(
+            f"Database file does not exist: {db_path}",
+        )
 
     conn = None
-    samccann = None
+    cursor = None
     results = {}
 
     try:
         conn = sqlite3.connect(db_path)
-        samccann = conn.samccann()
+        cursor = conn.cursor()
 
         # Enable row factory to get column names
         conn.row_factory = sqlite3.Row
-        samccann = conn.samccann()
+        cursor = conn.cursor()
 
         # Execute query
         if parameters:
-            samccann.execute(query, parameters)
+            cursor.execute(query, parameters)
         else:
-            samccann.execute(query)
+            cursor.execute(query)
 
-        results['rowcount'] = samccann.rowcount
+        results["rowcount"] = cursor.rowcount
 
         # Fetch results based on fetch parameter
-        if fetch != 'none':
+        if fetch != "none":
             query_lower = query.lower().strip()
-            if query_lower.startswith('select') or 'returning' in query_lower:
-                if fetch == 'all':
-                    rows = samccann.fetchall()
-                elif fetch == 'one':
-                    rows = samccann.fetchone()
+            if query_lower.startswith("select") or "returning" in query_lower:
+                if fetch == "all":
+                    rows = cursor.fetchall()
+                elif fetch == "one":
+                    rows = cursor.fetchone()
                     rows = [rows] if rows else []
                 else:
                     rows = []
@@ -176,15 +191,22 @@ def execute_query(db_path, query, parameters=None, fetch='all', transaction=True
                 if rows:
                     # Convert Row objects to lists and get column names
                     if isinstance(rows[0], sqlite3.Row):
-                        results['columns'] = list(rows[0].keys())
-                        results['rows'] = [list(row) for row in rows]
+                        results["columns"] = list(rows[0].keys())
+                        results["rows"] = [list(row) for row in rows]
                     else:
-                        results['rows'] = rows
+                        results["rows"] = rows
 
         # Determine if this was a modifying query
-        modifying_keywords = ['insert', 'update', 'delete', 'create', 'drop', 'alter']
+        modifying_keywords = [
+            "insert",
+            "update",
+            "delete",
+            "create",
+            "drop",
+            "alter",
+        ]
         is_modifying = any(keyword in query.lower() for keyword in modifying_keywords)
-        results['changed'] = is_modifying and samccann.rowcount > 0
+        results["changed"] = is_modifying and cursor.rowcount > 0
 
         if transaction:
             conn.commit()
@@ -198,8 +220,8 @@ def execute_query(db_path, query, parameters=None, fetch='all', transaction=True
             conn.rollback()
         raise error
     finally:
-        if samccann:
-            samccann.close()
+        if cursor:
+            cursor.close()
         if conn:
             conn.close()
 
@@ -210,29 +232,29 @@ def main():
     """Main function for the module"""
     module = AnsibleModule(
         argument_spec={
-            "db": {"required": True, "type": 'path'},
-            "query": {"required": True, "type": 'str'},
-            "parameters": {"type": 'list', "elements": 'raw'},
-            "fetch": {"default": 'all', "choices": ['all', 'one', 'none']},
-            "transaction": {"type": 'bool', "default": True}
+            "db": {"required": True, "type": "path"},
+            "query": {"required": True, "type": "str"},
+            "parameters": {"type": "list", "elements": "raw"},
+            "fetch": {"default": "all", "choices": ["all", "one", "none"]},
+            "transaction": {"type": "bool", "default": True},
         },
-        supports_check_mode=False  # SQL queries can't be safely checked
+        supports_check_mode=False,  # SQL queries can't be safely checked
     )
 
-    db_path = module.params['db']
-    query = module.params['query']
-    parameters = module.params['parameters']
-    fetch = module.params['fetch']
-    transaction = module.params['transaction']
+    db_path = module.params["db"]
+    query = module.params["query"]
+    parameters = module.params["parameters"]
+    fetch = module.params["fetch"]
+    transaction = module.params["transaction"]
 
     try:
         result = execute_query(db_path, query, parameters, fetch, transaction)
-        result['query'] = query
-        result.setdefault('changed', False)
+        result["query"] = query
+        result.setdefault("changed", False)
         module.exit_json(**result)
     except sqlite3.Error as error:
         module.fail_json(msg=str(error))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

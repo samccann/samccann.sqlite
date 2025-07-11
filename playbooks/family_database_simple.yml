@@ -20,7 +20,7 @@
 
   tasks:
     - name: Clean up existing database for fresh start
-      file:
+      ansible.builtin.file:
         path: "{{ database_path }}"
         state: absent
 
@@ -28,11 +28,11 @@
       sqlite_db:
         path: "{{ database_path }}"
         state: present
-        mode: '0644'
+        mode: "0644"
       register: db_creation
 
     - name: Display database creation result
-      debug:
+      ansible.builtin.debug:
         msg: "✅ Family database created at {{ database_path }} ({{ db_creation.size }} bytes)"
 
     - name: Create siblings table with comprehensive schema
@@ -60,14 +60,14 @@
       register: table_creation
 
     - name: Display table creation result
-      debug:
+      ansible.builtin.debug:
         msg: "✅ Siblings table {{ 'created' if table_creation.changed else 'already exists' }}"
 
     - name: Insert all sibling records
       sqlite_query:
         db: "{{ database_path }}"
         query: "INSERT INTO siblings (name, birth_order, age, favorite_color) VALUES (?, ?, ?, ?)"
-        parameters: 
+        parameters:
           - "{{ item.name }}"
           - "{{ item.birth_order }}"
           - "{{ item.age }}"
@@ -77,7 +77,7 @@
       register: insert_results
 
     - name: Display insertion summary
-      debug:
+      ansible.builtin.debug:
         msg: "✅ Successfully inserted {{ insert_results.results | selectattr('rowcount', 'equalto', 1) | list | length }} siblings"
 
     - name: Get total sibling count
@@ -88,27 +88,27 @@
       register: count_result
 
     - name: Display sibling count
-      debug:
+      ansible.builtin.debug:
         msg: "👥 Total siblings in family database: {{ count_result.rows[0][0] }}"
 
     - name: Retrieve all sibling information
       sqlite_query:
         db: "{{ database_path }}"
         query: |
-          SELECT 
-            id, 
-            name, 
-            birth_order, 
-            age, 
+          SELECT
+            id,
+            name,
+            birth_order,
+            age,
             favorite_color,
             datetime(created_at) as created_timestamp
-          FROM siblings 
+          FROM siblings
           ORDER BY birth_order
         fetch: all
       register: all_siblings
 
     - name: Display complete family information
-      debug:
+      ansible.builtin.debug:
         msg: |
           👥 FAMILY SIBLINGS DATABASE:
           {% for sibling in all_siblings.rows %}
@@ -125,19 +125,19 @@
       register: backup_result
 
     - name: Display final summary
-      debug:
-        msg: |
-          
+      ansible.builtin.debug:
+        msg: |2
+
           🎉 FAMILY DATABASE CREATED SUCCESSFULLY! 🎉
-          
+
           📁 Database: {{ database_path }}
           💾 Backup: {{ backup_path }}
           👥 Siblings: {{ count_result.rows[0][0] }}
           📊 Database size: {{ db_creation.size }} bytes
           ⚡ Backup time: {{ backup_result.backup_time }}s
           ✅ Backup verified: {{ backup_result.verified }}
-          
+
           🔍 Quick verification commands:
           sqlite3 {{ database_path }} "SELECT birth_order, name, age, favorite_color FROM siblings ORDER BY birth_order;"
           sqlite3 {{ database_path }} ".schema siblings"
-          sqlite3 {{ database_path }} ".tables" 
+          sqlite3 {{ database_path }} ".tables"

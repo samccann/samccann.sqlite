@@ -10,13 +10,13 @@
     db_path: /tmp/production.db
     backup_dir: /tmp/backups
     retention_days: 7
-    
+
   tasks:
     - name: Ensure backup directory exists
       ansible.builtin.file:
         path: "{{ backup_dir }}"
         state: directory
-        mode: '0755'
+        mode: "0755"
 
     - name: Check database integrity
       samccann.sqlite.sqlite_backup:
@@ -39,7 +39,7 @@
       samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: |
-          SELECT 
+          SELECT
             'Database Size' as metric,
             page_count * page_size as value
           FROM pragma_page_count(), pragma_page_size()
@@ -61,11 +61,11 @@
       samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: |
-          SELECT 
+          SELECT
             m.name as table_name,
             (SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND tbl_name=m.name) as index_count,
             COALESCE((SELECT COUNT(*) FROM pragma_table_info(m.name)), 0) as column_count
-          FROM sqlite_master m 
+          FROM sqlite_master m
           WHERE m.type='table' AND m.name NOT LIKE 'sqlite_%'
           ORDER BY m.name
         fetch: all
@@ -130,7 +130,7 @@
       samccann.sqlite.sqlite_query:
         db: "{{ db_path }}"
         query: |
-          SELECT 
+          SELECT
             page_count * page_size as database_size,
             freelist_count as unused_pages
           FROM pragma_page_count(), pragma_page_size(), pragma_freelist_count()
@@ -139,7 +139,7 @@
 
     - name: Report optimization results
       ansible.builtin.debug:
-        msg: 
+        msg:
           - "Database optimization completed"
           - "Current size: {{ post_stats.rows[0][0] }} bytes"
           - "Unused pages: {{ post_stats.rows[0][1] }}"
@@ -150,4 +150,4 @@
         dest: "{{ backup_dir }}/post_maintenance_{{ ansible_date_time.epoch }}.db"
         operation: backup
         verify_backup: true
-      when: backup_result.verified 
+      when: backup_result.verified

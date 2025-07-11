@@ -2,21 +2,24 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: (c) 2024, SQLite Collection Contributors
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """
 Ansible module for managing SQLite database tables.
 
-This module provides functionality to create, drop, or inspect SQLite database tables
-with support for complex table definitions and schema information.
+This module provides functionality to create, drop, or inspect SQLite
+database tables with support for complex table definitions and schema
+information.
 """
 
 from __future__ import absolute_import, division, print_function
 
+
 # pylint: disable=invalid-name
 __metaclass__ = type
 
-DOCUMENTATION = '''
+DOCUMENTATION = """
 ---
 module: sqlite_table
 short_description: Manage SQLite database tables
@@ -47,7 +50,8 @@ options:
     columns:
         description:
             - Column definitions for table creation
-            - Each column should be a dict with 'name', 'type', and optional 'constraints'
+            - Each column should be a dict with 'name', 'type', and optional
+              'constraints'
         type: list
         elements: dict
     if_not_exists:
@@ -68,9 +72,9 @@ options:
 requirements:
     - python >= 3.6
     - sqlite3 (built-in Python module)
-'''
+"""
 
-EXAMPLES = '''
+EXAMPLES = """
 - name: Create users table
   samccann.sqlite.sqlite_table:
     db: /tmp/example.db
@@ -103,9 +107,9 @@ EXAMPLES = '''
     db: /tmp/example.db
     name: old_table
     state: absent
-'''
+"""
 
-RETURN = '''
+RETURN = """
 table:
     description: Name of the table
     returned: always
@@ -136,47 +140,54 @@ schema:
     returned: when gather_info=true and table exists
     type: str
     sample: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)"
-'''
+"""
 
 import os
 import sqlite3
+
 from ansible.module_utils.basic import AnsibleModule
 
 
-def table_exists(samccann, table_name):
+def table_exists(cursor, table_name):
     """Check if table exists"""
-    samccann.execute("""
+    cursor.execute(
+        """
         SELECT name FROM sqlite_master
         WHERE type='table' AND name=?
-    """, (table_name,))
-    return samccann.fetchone() is not None
+    """,
+        (table_name,),
+    )
+    return cursor.fetchone() is not None
 
 
-def get_table_info(samccann, table_name):
+def get_table_info(cursor, table_name):
     """Get detailed table information"""
     info = {}
 
     # Get column information
-    samccann.execute(f"PRAGMA table_info({table_name})")
-    columns = samccann.fetchall()
-    info['columns'] = [dict(zip([col[0] for col in samccann.description], row)) for row in columns]
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    columns = cursor.fetchall()
+    info["columns"] = [dict(zip([col[0] for col in cursor.description], row)) for row in columns]
 
     # Get row count
-    samccann.execute(f"SELECT COUNT(*) FROM {table_name}")
-    info['row_count'] = samccann.fetchone()[0]
+    cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+    info["row_count"] = cursor.fetchone()[0]
 
     # Get table schema
-    samccann.execute("""
+    cursor.execute(
+        """
         SELECT sql FROM sqlite_master
         WHERE type='table' AND name=?
-    """, (table_name,))
-    result = samccann.fetchone()
-    info['schema'] = result[0] if result else None
+    """,
+        (table_name,),
+    )
+    result = cursor.fetchone()
+    info["schema"] = result[0] if result else None
 
     return info
 
 
-def create_table(samccann, table_name, columns, if_not_exists=True):
+def create_table(cursor, table_name, columns, if_not_exists=True):
     """Create table with specified columns"""
     if_not_exists_clause = "IF NOT EXISTS " if if_not_exists else ""
 
@@ -184,26 +195,27 @@ def create_table(samccann, table_name, columns, if_not_exists=True):
     column_defs = []
     for col in columns:
         col_def = f"{col['name']} {col['type']}"
-        if 'constraints' in col and col['constraints']:
+        if "constraints" in col and col["constraints"]:
             col_def += f" {col['constraints']}"
         column_defs.append(col_def)
 
     columns_sql = ", ".join(column_defs)
     sql = f"CREATE TABLE {if_not_exists_clause}{table_name} ({columns_sql})"
 
-    samccann.execute(sql)
+    cursor.execute(sql)
     return sql
 
 
-def drop_table(samccann, table_name, cascade=False):
+def drop_table(cursor, table_name, cascade=False):
     """Drop table"""
     # SQLite doesn't support CASCADE, but we can check for it
     if cascade:
-        # This is more for compatibility - SQLite handles FK constraints differently
+        # This is more for compatibility - SQLite handles FK constraints
+        # differently
         pass
 
     sql = f"DROP TABLE {table_name}"
-    samccann.execute(sql)
+    cursor.execute(sql)
     return sql
 
 
@@ -211,79 +223,79 @@ def main():  # pylint: disable=too-many-branches
     """Main function for the module"""
     module = AnsibleModule(
         argument_spec={
-            "db": {"required": True, "type": 'path'},
-            "name": {"required": True, "type": 'str'},
-            "state": {"default": 'present', "choices": ['absent', 'present']},
-            "columns": {"type": 'list', "elements": 'dict'},
-            "if_not_exists": {"type": 'bool', "default": True},
-            "cascade": {"type": 'bool', "default": False},
-            "gather_info": {"type": 'bool', "default": False}
+            "db": {"required": True, "type": "path"},
+            "name": {"required": True, "type": "str"},
+            "state": {"default": "present", "choices": ["absent", "present"]},
+            "columns": {"type": "list", "elements": "dict"},
+            "if_not_exists": {"type": "bool", "default": True},
+            "cascade": {"type": "bool", "default": False},
+            "gather_info": {"type": "bool", "default": False},
         },
         supports_check_mode=True,
         required_if=[
-            ('state', 'present', ['columns'])
-        ]
+            ("state", "present", ["columns"]),
+        ],
     )
 
-    db_path = module.params['db']
-    table_name = module.params['name']
-    state = module.params['state']
-    columns = module.params['columns']
-    if_not_exists = module.params['if_not_exists']
-    cascade = module.params['cascade']
-    gather_info = module.params['gather_info']
+    db_path = module.params["db"]
+    table_name = module.params["name"]
+    state = module.params["state"]
+    columns = module.params["columns"]
+    if_not_exists = module.params["if_not_exists"]
+    cascade = module.params["cascade"]
+    gather_info = module.params["gather_info"]
 
     if not os.path.exists(db_path):
         module.fail_json(msg=f"Database file does not exist: {db_path}")
 
     result = {
         "changed": False,
-        "table": table_name
+        "table": table_name,
     }
 
     conn = None
-    samccann = None
+    cursor = None
 
     try:
         conn = sqlite3.connect(db_path)
-        samccann = conn.samccann()
+        cursor = conn.cursor()
 
-        exists = table_exists(samccann, table_name)
-        result['exists'] = exists
+        exists = table_exists(cursor, table_name)
+        result["exists"] = exists
 
         # Gather information if requested
         if gather_info and exists:
-            info = get_table_info(samccann, table_name)
+            info = get_table_info(cursor, table_name)
             result.update(info)
 
-        if state == 'present':
+        if state == "present":
             if not exists:
                 if not module.check_mode:
-                    create_table(samccann, table_name, columns, if_not_exists)
+                    create_table(cursor, table_name, columns, if_not_exists)
                     conn.commit()
-                result['changed'] = True
-                result['exists'] = True
+                result["changed"] = True
+                result["exists"] = True
 
-        elif state == 'absent':
+        elif state == "absent":
             if exists:
                 if not module.check_mode:
-                    drop_table(samccann, table_name, cascade)
+                    drop_table(cursor, table_name, cascade)
                     conn.commit()
-                result['changed'] = True
-                result['exists'] = False
+                result["changed"] = True
+                result["exists"] = False
 
     except sqlite3.Error as error:
         module.fail_json(msg=f"SQLite error: {str(error)}")
     except OSError as error:
         module.fail_json(msg=f"OS Error: {str(error)}")
     finally:
-        if samccann:
-            samccann.close()
+        if cursor:
+            cursor.close()
         if conn:
             conn.close()
 
     module.exit_json(**result)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
