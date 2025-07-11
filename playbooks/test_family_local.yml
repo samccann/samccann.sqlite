@@ -7,18 +7,18 @@
 
   tasks:
     - name: Create family database
-      sqlite_db:
+      samccann.sqlite.sqlite_db:
         path: "./family.db"
         state: present
         mode: "0644"
       register: db_result
 
     - name: Show database creation
-      debug:
+      ansible.builtin.debug:
         msg: "Database created: {{ db_result.path if db_result.path is defined else './family.db' }}"
 
     - name: Create siblings table
-      sqlite_table:
+      samccann.sqlite.sqlite_table:
         db: "./family.db"
         name: siblings
         state: present
@@ -33,7 +33,7 @@
             type: INTEGER
 
     - name: Insert siblings
-      sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "./family.db"
         query: "INSERT INTO siblings (name, birth_order) VALUES (?, ?)"
         parameters: ["{{ item.name }}", "{{ item.order }}"]
@@ -46,12 +46,12 @@
         - { name: "Sharon", order: 6 }
 
     - name: Show all siblings
-      sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "./family.db"
         query: "SELECT id, name, birth_order FROM siblings ORDER BY birth_order"
         fetch: all
       register: all_siblings
 
     - name: Display all siblings
-      debug:
+      ansible.builtin.debug:
         msg: "{{ all_siblings.rows }}"

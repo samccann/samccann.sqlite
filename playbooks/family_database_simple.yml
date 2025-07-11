@@ -20,7 +20,7 @@
 
   tasks:
     - name: Clean up existing database for fresh start
-      file:
+      ansible.builtin.file:
         path: "{{ database_path }}"
         state: absent
 
@@ -32,7 +32,7 @@
       register: db_creation
 
     - name: Display database creation result
-      debug:
+      ansible.builtin.debug:
         msg: "✅ Family database created at {{ database_path }} ({{ db_creation.size }} bytes)"
 
     - name: Create siblings table with comprehensive schema
@@ -60,7 +60,7 @@
       register: table_creation
 
     - name: Display table creation result
-      debug:
+      ansible.builtin.debug:
         msg: "✅ Siblings table {{ 'created' if table_creation.changed else 'already exists' }}"
 
     - name: Insert all sibling records
@@ -77,7 +77,7 @@
       register: insert_results
 
     - name: Display insertion summary
-      debug:
+      ansible.builtin.debug:
         msg: "✅ Successfully inserted {{ insert_results.results | selectattr('rowcount', 'equalto', 1) | list | length }} siblings"
 
     - name: Get total sibling count
@@ -88,7 +88,7 @@
       register: count_result
 
     - name: Display sibling count
-      debug:
+      ansible.builtin.debug:
         msg: "👥 Total siblings in family database: {{ count_result.rows[0][0] }}"
 
     - name: Retrieve all sibling information
@@ -108,7 +108,7 @@
       register: all_siblings
 
     - name: Display complete family information
-      debug:
+      ansible.builtin.debug:
         msg: |
           👥 FAMILY SIBLINGS DATABASE:
           {% for sibling in all_siblings.rows %}
@@ -125,8 +125,8 @@
       register: backup_result
 
     - name: Display final summary
-      debug:
-        msg: |
+      ansible.builtin.debug:
+        msg: |2
 
           🎉 FAMILY DATABASE CREATED SUCCESSFULLY! 🎉
 

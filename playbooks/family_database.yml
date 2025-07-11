@@ -26,12 +26,12 @@
 
   tasks:
     - name: Clean up existing database for fresh start
-      file:
+      ansible.builtin.file:
         path: "{{ database_path }}"
         state: absent
 
     - name: Create family SQLite database
-      sqlite_db:
+      samccann.sqlite.sqlite_db:
         path: "{{ database_path }}"
         state: present
         mode: "0644"
@@ -39,7 +39,7 @@
       when: not use_fqcn
 
     - name: Create family SQLite database (FQCN)
-      community.sqlite.sqlite_db:
+      samccann.sqlite.sqlite_db:
         path: "{{ database_path }}"
         state: present
         mode: "0644"
@@ -47,11 +47,11 @@
       when: use_fqcn
 
     - name: Display database creation result
-      debug:
+      ansible.builtin.debug:
         msg: "✅ Family database created at {{ database_path }} ({{ db_creation.size }} bytes)"
 
     - name: Create siblings table with comprehensive schema
-      sqlite_table:
+      samccann.sqlite.sqlite_table:
         db: "{{ database_path }}"
         name: siblings
         state: present
@@ -76,7 +76,7 @@
       when: not use_fqcn
 
     - name: Create siblings table with comprehensive schema (FQCN)
-      community.sqlite.sqlite_table:
+      samccann.sqlite.sqlite_table:
         db: "{{ database_path }}"
         name: siblings
         state: present
@@ -101,11 +101,11 @@
       when: use_fqcn
 
     - name: Display table creation result
-      debug:
+      ansible.builtin.debug:
         msg: "✅ Siblings table {{ 'created' if table_creation.changed else 'already exists' }}"
 
     - name: Insert all sibling records
-      sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: "INSERT INTO siblings (name, birth_order, age, favorite_color) VALUES (?, ?, ?, ?)"
         parameters:
@@ -119,7 +119,7 @@
       when: not use_fqcn
 
     - name: Insert all sibling records (FQCN)
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: "INSERT INTO siblings (name, birth_order, age, favorite_color) VALUES (?, ?, ?, ?)"
         parameters:
@@ -133,11 +133,11 @@
       when: use_fqcn
 
     - name: Display insertion summary
-      debug:
+      ansible.builtin.debug:
         msg: "✅ Successfully inserted {{ insert_results.results | selectattr('rowcount', 'equalto', 1) | list | length }} siblings"
 
     - name: Get total sibling count
-      sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: "SELECT COUNT(*) as total FROM siblings"
         fetch: one
@@ -145,7 +145,7 @@
       when: not use_fqcn
 
     - name: Get total sibling count (FQCN)
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: "SELECT COUNT(*) as total FROM siblings"
         fetch: one
@@ -153,11 +153,11 @@
       when: use_fqcn
 
     - name: Display sibling count
-      debug:
+      ansible.builtin.debug:
         msg: "👥 Total siblings in family database: {{ count_result.rows[0][0] }}"
 
     - name: Retrieve all sibling information
-      sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: |
           SELECT
@@ -174,7 +174,7 @@
       when: not use_fqcn
 
     - name: Retrieve all sibling information (FQCN)
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: |
           SELECT
@@ -191,7 +191,7 @@
       when: use_fqcn
 
     - name: Display complete family information
-      debug:
+      ansible.builtin.debug:
         msg: |
           👥 FAMILY SIBLINGS DATABASE:
           {% for sibling in all_siblings.rows %}
@@ -199,7 +199,7 @@
           {% endfor %}
 
     - name: Create backup of family database
-      sqlite_backup:
+      samccann.sqlite.sqlite_backup:
         src: "{{ database_path }}"
         dest: "{{ backup_path }}"
         operation: backup
@@ -209,7 +209,7 @@
       when: not use_fqcn
 
     - name: Create backup of family database (FQCN)
-      community.sqlite.sqlite_backup:
+      samccann.sqlite.sqlite_backup:
         src: "{{ database_path }}"
         dest: "{{ backup_path }}"
         operation: backup
@@ -219,8 +219,8 @@
       when: use_fqcn
 
     - name: Display final summary
-      debug:
-        msg: |
+      ansible.builtin.debug:
+        msg: |2
 
           🎉 FAMILY DATABASE CREATED SUCCESSFULLY! 🎉
 

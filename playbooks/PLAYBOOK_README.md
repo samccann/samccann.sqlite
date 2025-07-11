@@ -1,6 +1,6 @@
 # Family Database Playbooks
 
-This directory contains several Ansible playbooks that demonstrate the usage of the `community.sqlite` collection to create a family database with sibling information.
+This directory contains several Ansible playbooks that demonstrate the usage of the `samccann.sqlite` collection to create a family database with sibling information.
 
 ## 📁 Available Playbooks
 

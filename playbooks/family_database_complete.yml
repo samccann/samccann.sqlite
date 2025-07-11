@@ -15,23 +15,23 @@
 
   tasks:
     - name: Remove existing database for clean start
-      file:
+      ansible.builtin.file:
         path: "{{ database_path }}"
         state: absent
 
     - name: Create family database
-      community.sqlite.sqlite_db:
+      samccann.sqlite.sqlite_db:
         path: "{{ database_path }}"
         state: present
         mode: "0644"
       register: db_creation
 
     - name: Display database creation info
-      debug:
+      ansible.builtin.debug:
         msg: "✅ Database created at {{ database_path }} ({{ db_creation.size }} bytes)"
 
     - name: Create siblings table with comprehensive schema
-      community.sqlite.sqlite_table:
+      samccann.sqlite.sqlite_table:
         db: "{{ database_path }}"
         name: siblings
         state: present
@@ -56,11 +56,11 @@
       register: table_creation
 
     - name: Display table creation result
-      debug:
+      ansible.builtin.debug:
         msg: "✅ Siblings table {{ 'created' if table_creation.changed else 'already exists' }}"
 
     - name: Insert all siblings using loop
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: "INSERT INTO siblings (name, birth_order) VALUES (?, ?)"
         parameters: ["{{ item.name }}", "{{ item.birth_order }}"]
@@ -69,11 +69,11 @@
       register: insert_results
 
     - name: Display insertion summary
-      debug:
+      ansible.builtin.debug:
         msg: "✅ Inserted {{ insert_results.results | selectattr('rowcount', 'equalto', 1) | list | length }} siblings successfully"
 
     - name: Update siblings with additional information
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: "UPDATE siblings SET age = ?, favorite_color = ? WHERE name = ?"
         parameters: ["{{ item.age }}", "{{ item.color }}", "{{ item.name }}"]
@@ -86,18 +86,18 @@
         - { name: "Sharon", age: 55, color: "Pink" }
 
     - name: Get total sibling count
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: "SELECT COUNT(*) as total FROM siblings"
         fetch: one
       register: count_query
 
     - name: Display sibling count
-      debug:
+      ansible.builtin.debug:
         msg: "📊 Total siblings in family: {{ count_query.rows[0][0] }}"
 
     - name: Retrieve all sibling information
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: |
           SELECT
@@ -113,7 +113,7 @@
       register: all_siblings
 
     - name: Display complete sibling information
-      debug:
+      ansible.builtin.debug:
         msg: |
           👥 FAMILY SIBLINGS:
           {% for sibling in all_siblings.rows %}
@@ -121,7 +121,7 @@
           {% endfor %}
 
     - name: Get table information and statistics
-      community.sqlite.sqlite_table:
+      samccann.sqlite.sqlite_table:
         db: "{{ database_path }}"
         name: siblings
         state: present
@@ -129,7 +129,7 @@
       register: table_info
 
     - name: Display table schema information
-      debug:
+      ansible.builtin.debug:
         msg: |
           📋 TABLE INFORMATION:
           - Table: {{ table_info.table }}
@@ -138,7 +138,7 @@
           - Schema: {{ table_info.schema }}
 
     - name: Create database backup
-      community.sqlite.sqlite_backup:
+      samccann.sqlite.sqlite_backup:
         src: "{{ database_path }}"
         dest: "{{ backup_path }}"
         operation: backup
@@ -147,7 +147,7 @@
       register: backup_result
 
     - name: Display backup information
-      debug:
+      ansible.builtin.debug:
         msg: |
           💾 BACKUP COMPLETED:
           - Time taken: {{ backup_result.backup_time }}s
@@ -157,7 +157,7 @@
           - Location: {{ backup_path }}
 
     - name: Find oldest and youngest siblings
-      community.sqlite.sqlite_query:
+      samccann.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: |
           SELECT name, age FROM siblings
@@ -168,15 +168,15 @@
       register: age_extremes
 
     - name: Display age information
-      debug:
+      ansible.builtin.debug:
         msg: |
           👴👶 AGE STATISTICS:
           - Oldest: {{ age_extremes.rows[0][0] }} ({{ age_extremes.rows[0][1] }} years)
           - Youngest: {{ age_extremes.rows[1][0] }} ({{ age_extremes.rows[1][1] }} years)
 
     - name: Show final summary
-      debug:
-        msg: |
+      ansible.builtin.debug:
+        msg: |2
 
           🎉 FAMILY DATABASE SETUP COMPLETE! 🎉
 

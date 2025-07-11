@@ -47,7 +47,8 @@
   samccann.sqlite.sqlite_table:
     db: "{{ run_sqlite_db_path }}"
     name: users
-    state: info
+    state: present
+    gather_info: true
   register: users_table_info
 
 - name: Debug table information
