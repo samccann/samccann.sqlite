@@ -10,7 +10,7 @@
       community.sqlite.sqlite_db:
         path: "{{ db_path }}"
         state: present
-        mode: '0644'
+        mode: "0644"
       register: db_result
 
     - name: Show database creation result
@@ -77,4 +77,4 @@
 
     - name: Display siblings
       debug:
-        msg: "{{ all_siblings.rows }}" 
+        msg: "{{ all_siblings.rows }}"

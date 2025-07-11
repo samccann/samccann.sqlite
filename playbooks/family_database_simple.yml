@@ -28,7 +28,7 @@
       sqlite_db:
         path: "{{ database_path }}"
         state: present
-        mode: '0644'
+        mode: "0644"
       register: db_creation
 
     - name: Display database creation result
@@ -67,7 +67,7 @@
       sqlite_query:
         db: "{{ database_path }}"
         query: "INSERT INTO siblings (name, birth_order, age, favorite_color) VALUES (?, ?, ?, ?)"
-        parameters: 
+        parameters:
           - "{{ item.name }}"
           - "{{ item.birth_order }}"
           - "{{ item.age }}"
@@ -95,14 +95,14 @@
       sqlite_query:
         db: "{{ database_path }}"
         query: |
-          SELECT 
-            id, 
-            name, 
-            birth_order, 
-            age, 
+          SELECT
+            id,
+            name,
+            birth_order,
+            age,
             favorite_color,
             datetime(created_at) as created_timestamp
-          FROM siblings 
+          FROM siblings
           ORDER BY birth_order
         fetch: all
       register: all_siblings
@@ -127,17 +127,17 @@
     - name: Display final summary
       debug:
         msg: |
-          
+
           🎉 FAMILY DATABASE CREATED SUCCESSFULLY! 🎉
-          
+
           📁 Database: {{ database_path }}
           💾 Backup: {{ backup_path }}
           👥 Siblings: {{ count_result.rows[0][0] }}
           📊 Database size: {{ db_creation.size }} bytes
           ⚡ Backup time: {{ backup_result.backup_time }}s
           ✅ Backup verified: {{ backup_result.verified }}
-          
+
           🔍 Quick verification commands:
           sqlite3 {{ database_path }} "SELECT birth_order, name, age, favorite_color FROM siblings ORDER BY birth_order;"
           sqlite3 {{ database_path }} ".schema siblings"
-          sqlite3 {{ database_path }} ".tables" 
+          sqlite3 {{ database_path }} ".tables"

@@ -2,21 +2,23 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: (c) 2024, SQLite Collection Contributors
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """
 Ansible module for SQLite database backup and restore operations.
 
-This module provides functionality to backup, restore, and verify SQLite databases
-with support for compression and integrity checking.
+This module provides functionality to backup, restore, and verify SQLite
+databases with support for compression and integrity checking.
 """
 
 from __future__ import absolute_import, division, print_function
 
+
 # pylint: disable=invalid-name
 __metaclass__ = type
 
-DOCUMENTATION = '''
+DOCUMENTATION = """
 ---
 module: sqlite_backup
 short_description: Backup and restore SQLite databases
@@ -64,9 +66,9 @@ requirements:
     - python >= 3.6
     - sqlite3 (built-in Python module)
     - gzip (built-in Python module, optional for compression)
-'''
+"""
 
-EXAMPLES = '''
+EXAMPLES = """
 - name: Create database backup
   samccann.sqlite.sqlite_backup:
     src: /var/lib/app/production.db
@@ -93,9 +95,9 @@ EXAMPLES = '''
     src: /backup/production_backup.db
     dest: /dev/null
     operation: verify
-'''
+"""
 
-RETURN = '''
+RETURN = """
 src:
     description: Source file path
     returned: always
@@ -141,14 +143,15 @@ backup_time:
     returned: when operation=backup
     type: float
     sample: 2.34
-'''
+"""
 
-import os
-import sqlite3
-import shutil
-import time
 import gzip
+import os
+import shutil
+import sqlite3
 import tempfile
+import time
+
 from ansible.module_utils.basic import AnsibleModule
 
 
@@ -164,11 +167,11 @@ def verify_sqlite_db(db_path):
     """Verify SQLite database integrity"""
     try:
         conn = sqlite3.connect(db_path)
-        samccann = conn.samccann()
-        samccann.execute("PRAGMA integrity_check")
-        result = samccann.fetchone()
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA integrity_check")
+        result = cursor.fetchone()
         conn.close()
-        return result[0] == 'ok'
+        return result[0] == "ok"
     except sqlite3.Error:
         return False
 
@@ -178,8 +181,8 @@ def backup_database(src_path, dest_path, compress=False):
     start_time = time.time()
 
     if compress:
-        with open(src_path, 'rb') as src_file:
-            with gzip.open(dest_path, 'wb') as dest_file:
+        with open(src_path, "rb") as src_file:
+            with gzip.open(dest_path, "wb") as dest_file:
                 shutil.copyfileobj(src_file, dest_file)
     else:
         shutil.copy2(src_path, dest_path)
@@ -193,8 +196,8 @@ def restore_database(src_path, dest_path, compressed=False):
     start_time = time.time()
 
     if compressed:
-        with gzip.open(src_path, 'rb') as src_file:
-            with open(dest_path, 'wb') as dest_file:
+        with gzip.open(src_path, "rb") as src_file:
+            with open(dest_path, "wb") as dest_file:
                 shutil.copyfileobj(src_file, dest_file)
     else:
         shutil.copy2(src_path, dest_path)
@@ -206,111 +209,130 @@ def restore_database(src_path, dest_path, compressed=False):
 def is_compressed_file(file_path):
     """Check if file is gzip compressed"""
     try:
-        with open(file_path, 'rb') as file_handle:
-            return file_handle.read(2) == b'\x1f\x8b'
+        with open(file_path, "rb") as file_handle:
+            return file_handle.read(2) == b"\x1f\x8b"
     except OSError:
         return False
 
 
-def main():  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+# pylint: disable=too-many-locals,too-many-branches,too-many-statements
+def main():
     """Main function for the module"""
     module = AnsibleModule(
         argument_spec={
-            "src": {"required": True, "type": 'path'},
-            "dest": {"required": True, "type": 'path'},
-            "operation": {"default": 'backup', "choices": ['backup', 'restore', 'verify']},
-            "compress": {"type": 'bool', "default": False},
-            "overwrite": {"type": 'bool', "default": False},
-            "verify_backup": {"type": 'bool', "default": True}
+            "src": {"required": True, "type": "path"},
+            "dest": {"required": True, "type": "path"},
+            "operation": {
+                "default": "backup",
+                "choices": ["backup", "restore", "verify"],
+            },
+            "compress": {"type": "bool", "default": False},
+            "overwrite": {"type": "bool", "default": False},
+            "verify_backup": {"type": "bool", "default": True},
         },
-        supports_check_mode=True
+        supports_check_mode=True,
     )
 
-    src_path = module.params['src']
-    dest_path = module.params['dest']
-    operation = module.params['operation']
-    compress = module.params['compress']
-    overwrite = module.params['overwrite']
-    verify_backup = module.params['verify_backup']
+    src_path = module.params["src"]
+    dest_path = module.params["dest"]
+    operation = module.params["operation"]
+    compress = module.params["compress"]
+    overwrite = module.params["overwrite"]
+    verify_backup = module.params["verify_backup"]
 
     result = {
         "changed": False,
         "src": src_path,
         "dest": dest_path,
         "operation": operation,
-        "compressed": compress
+        "compressed": compress,
     }
 
     # Check if source file exists
-    if not os.path.exists(src_path) and operation != 'verify':
+    if not os.path.exists(src_path) and operation != "verify":
         module.fail_json(msg=f"Source file does not exist: {src_path}")
 
     # Get source file size
     if os.path.exists(src_path):
-        result['src_size'] = get_file_size(src_path)
+        result["src_size"] = get_file_size(src_path)
 
     # Check if destination exists and handle overwrite
     dest_exists = os.path.exists(dest_path)
     if dest_exists:
-        result['dest_size'] = get_file_size(dest_path)
-        if not overwrite and operation in ['backup', 'restore']:
-            module.fail_json(msg=f"Destination file exists and overwrite=false: {dest_path}")
+        result["dest_size"] = get_file_size(dest_path)
+        if not overwrite and operation in ["backup", "restore"]:
+            module.fail_json(
+                msg=f"Destination file exists and overwrite=false: {dest_path}",
+            )
 
     try:
-        if operation == 'backup':  # pylint: disable=too-many-nested-blocks
+        if operation == "backup":  # pylint: disable=too-many-nested-blocks
             # Verify source database before backup
             if not verify_sqlite_db(src_path):
-                module.fail_json(msg=f"Source database integrity check failed: {src_path}")
+                module.fail_json(
+                    msg=f"Source database integrity check failed: {src_path}",
+                )
 
             if not module.check_mode:
                 backup_time = backup_database(src_path, dest_path, compress)
-                result['backup_time'] = backup_time
-                result['dest_size'] = get_file_size(dest_path)
+                result["backup_time"] = backup_time
+                result["dest_size"] = get_file_size(dest_path)
 
                 # Verify backup if requested
                 if verify_backup:  # pylint: disable=too-many-nested-blocks
                     if compress:  # pylint: disable=too-many-nested-blocks
-                        # For compressed backups, decompress temporarily to verify
-                        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                        # For compressed backups, decompress temporarily
+                        # to verify
+                        with tempfile.NamedTemporaryFile(
+                            delete=False,
+                        ) as temp_file:
                             temp_path = temp_file.name
                         try:
-                            with gzip.open(dest_path, 'rb') as gz_file:
-                                with open(temp_path, 'wb') as temp_file:
+                            with gzip.open(dest_path, "rb") as gz_file:
+                                with open(temp_path, "wb") as temp_file:
                                     shutil.copyfileobj(gz_file, temp_file)
-                            result['verified'] = verify_sqlite_db(temp_path)
+                            result["verified"] = verify_sqlite_db(temp_path)
                         finally:
                             os.unlink(temp_path)
                     else:
-                        result['verified'] = verify_sqlite_db(dest_path)
+                        result["verified"] = verify_sqlite_db(dest_path)
 
-                    if not result['verified']:
+                    if not result["verified"]:
                         module.fail_json(msg="Backup verification failed")
 
-            result['changed'] = True
+            result["changed"] = True
 
-        elif operation == 'restore':
+        elif operation == "restore":
             # Detect if source is compressed
             src_compressed = is_compressed_file(src_path)
-            result['compressed'] = src_compressed
+            result["compressed"] = src_compressed
 
             if not module.check_mode:
-                restore_time = restore_database(src_path, dest_path, src_compressed)
-                result['backup_time'] = restore_time
-                result['dest_size'] = get_file_size(dest_path)
+                restore_time = restore_database(
+                    src_path,
+                    dest_path,
+                    src_compressed,
+                )
+                result["backup_time"] = restore_time
+                result["dest_size"] = get_file_size(dest_path)
 
                 # Verify restored database
                 if not verify_sqlite_db(dest_path):
-                    module.fail_json(msg="Restored database integrity check failed")
+                    module.fail_json(
+                        msg="Restored database integrity check failed",
+                    )
 
-            result['changed'] = True
+            result["changed"] = True
 
-        elif operation == 'verify':
+        elif operation == "verify":
             # Verify database integrity
-            if src_path != '/dev/null':  # Skip verification for /dev/null
+            if src_path != "/dev/null":  # Skip verification for /dev/null
                 verified = verify_sqlite_db(src_path)
-                result['verified'] = verified
+                result["verified"] = verified
                 if not verified:
-                    module.fail_json(msg=f"Database integrity check failed: {src_path}")
+                    module.fail_json(
+                        msg=f"Database integrity check failed: {src_path}",
+                    )
 
     except sqlite3.Error as error:
         module.fail_json(msg=f"Operation failed: {str(error)}")
@@ -318,5 +340,5 @@ def main():  # pylint: disable=too-many-locals,too-many-branches,too-many-statem
     module.exit_json(**result)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

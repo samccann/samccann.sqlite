@@ -2,21 +2,23 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: (c) 2024, SQLite Collection Contributors
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """
 Ansible module for managing SQLite databases.
 
-This module provides functionality to create, delete, or check the state of SQLite databases
-with support for file permissions and ownership management.
+This module provides functionality to create, delete, or check the state of
+SQLite databases with support for file permissions and ownership management.
 """
 
 from __future__ import absolute_import, division, print_function
 
+
 # pylint: disable=invalid-name
 __metaclass__ = type
 
-DOCUMENTATION = '''
+DOCUMENTATION = """
 ---
 module: sqlite_db
 short_description: Manage SQLite databases
@@ -61,9 +63,9 @@ requirements:
 notes:
     - This module uses the built-in sqlite3 Python module
     - Database files are created with restrictive permissions by default
-'''
+"""
 
-EXAMPLES = '''
+EXAMPLES = """
 - name: Create SQLite database
   samccann.sqlite.sqlite_db:
     path: /tmp/example.db
@@ -82,9 +84,9 @@ EXAMPLES = '''
     path: /tmp/production.db
     state: present
     backup: true
-'''
+"""
 
-RETURN = '''
+RETURN = """
 path:
     description: Path to the database file
     returned: always
@@ -105,14 +107,16 @@ backup_file:
     returned: when backup=true and file existed
     type: str
     sample: /tmp/example.db.backup.20240101_120000
-'''
+"""
 
-import os
-import sqlite3
-import shutil
-import pwd
 import grp
+import os
+import pwd
+import shutil
+import sqlite3
+
 from datetime import datetime
+
 from ansible.module_utils.basic import AnsibleModule
 
 
@@ -120,7 +124,8 @@ def create_database(path):
     """Create an SQLite database file"""
     try:
         conn = sqlite3.connect(path)
-        conn.execute("PRAGMA user_version = 1;")  # Simple operation to ensure file is created
+        # Simple operation to ensure file is created
+        conn.execute("PRAGMA user_version = 1;")
         conn.close()
         return True
     except sqlite3.Error:
@@ -150,26 +155,26 @@ def main():  # pylint: disable=too-many-branches
     """Main function for the module"""
     module = AnsibleModule(
         argument_spec={
-            "path": {"required": True, "type": 'path'},
-            "state": {"default": 'present', "choices": ['absent', 'present']},
-            "mode": {"type": 'str'},
-            "owner": {"type": 'str'},
-            "group": {"type": 'str'},
-            "backup": {"type": 'bool', "default": False}
+            "path": {"required": True, "type": "path"},
+            "state": {"default": "present", "choices": ["absent", "present"]},
+            "mode": {"type": "str"},
+            "owner": {"type": "str"},
+            "group": {"type": "str"},
+            "backup": {"type": "bool", "default": False},
         },
-        supports_check_mode=True
+        supports_check_mode=True,
     )
 
-    path = module.params['path']
-    state = module.params['state']
-    mode = module.params['mode']
-    owner = module.params['owner']
-    group = module.params['group']
-    backup = module.params['backup']
+    path = module.params["path"]
+    state = module.params["state"]
+    mode = module.params["mode"]
+    owner = module.params["owner"]
+    group = module.params["group"]
+    backup = module.params["backup"]
 
     result = {
         "changed": False,
-        "path": path
+        "path": path,
     }
 
     file_exists = os.path.exists(path)
@@ -179,25 +184,29 @@ def main():  # pylint: disable=too-many-branches
     if backup and file_exists and not module.check_mode:
         backup_file = create_backup(path)
         if backup_file:
-            result['backup_file'] = backup_file
+            result["backup_file"] = backup_file
 
-    if state == 'present':
+    if state == "present":
         if not file_exists:
             if not module.check_mode:
                 success = create_database(path)
                 if not success:
-                    module.fail_json(msg=f"Failed to create database at {path}")
-            result['changed'] = True
+                    module.fail_json(
+                        msg=f"Failed to create database at {path}",
+                    )
+            result["changed"] = True
 
-        if not module.check_mode and (file_exists or result['changed']):
-            result['size'] = get_file_size(path)
+        if not module.check_mode and (file_exists or result["changed"]):
+            result["size"] = get_file_size(path)
 
             # Set file permissions
             if mode:
                 try:
                     os.chmod(path, int(mode, 8))
                 except OSError as error:
-                    module.fail_json(msg=f"Failed to set mode {mode}: {str(error)}")
+                    module.fail_json(
+                        msg=f"Failed to set mode {mode}: {str(error)}",
+                    )
 
             # Set ownership (requires appropriate privileges)
             if owner or group:
@@ -206,19 +215,23 @@ def main():  # pylint: disable=too-many-branches
                     gid = grp.getgrnam(group).gr_gid if group else -1
                     os.chown(path, uid, gid)
                 except (KeyError, OSError) as error:
-                    module.fail_json(msg=f"Failed to set ownership: {str(error)}")
+                    module.fail_json(
+                        msg=f"Failed to set ownership: {str(error)}",
+                    )
 
-    elif state == 'absent':
+    elif state == "absent":
         if file_exists:
             if not module.check_mode:
                 try:
                     os.remove(path)
                 except OSError as error:
-                    module.fail_json(msg=f"Failed to remove database: {str(error)}")
-            result['changed'] = True
+                    module.fail_json(
+                        msg=f"Failed to remove database: {str(error)}",
+                    )
+            result["changed"] = True
 
     module.exit_json(**result)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

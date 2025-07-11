@@ -4,13 +4,13 @@
   gather_facts: false
   vars:
     ansible_python_interpreter: "{{ ansible_playbook_python }}"
-  
+
   tasks:
     - name: Create family database
       sqlite_db:
         path: "./family.db"
         state: present
-        mode: '0644'
+        mode: "0644"
       register: db_result
 
     - name: Show database creation
@@ -54,4 +54,4 @@
 
     - name: Display all siblings
       debug:
-        msg: "{{ all_siblings.rows }}" 
+        msg: "{{ all_siblings.rows }}"

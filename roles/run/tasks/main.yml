@@ -52,7 +52,7 @@
 
 - name: Debug table information
   ansible.builtin.debug:
-    msg: 
+    msg:
       - "Table: {{ users_table_info.table }}"
       - "Exists: {{ users_table_info.exists }}"
       - "Row count: {{ users_table_info.row_count | default('N/A') }}"
@@ -64,6 +64,6 @@
     dest: "{{ run_sqlite_backup_path }}"
     operation: backup
     verify_backup: true
-  when: 
+  when:
     - run_create_backup | bool
     - users_table_info.exists | default(false)

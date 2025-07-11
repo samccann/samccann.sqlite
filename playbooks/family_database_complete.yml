@@ -23,7 +23,7 @@
       community.sqlite.sqlite_db:
         path: "{{ database_path }}"
         state: present
-        mode: '0644'
+        mode: "0644"
       register: db_creation
 
     - name: Display database creation info
@@ -100,14 +100,14 @@
       community.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: |
-          SELECT 
-            id, 
-            name, 
-            birth_order, 
-            age, 
+          SELECT
+            id,
+            name,
+            birth_order,
+            age,
             favorite_color,
             created_at
-          FROM siblings 
+          FROM siblings
           ORDER BY birth_order
         fetch: all
       register: all_siblings
@@ -160,10 +160,10 @@
       community.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: |
-          SELECT name, age FROM siblings 
+          SELECT name, age FROM siblings
           WHERE age = (SELECT MAX(age) FROM siblings)
           UNION ALL
-          SELECT name, age FROM siblings 
+          SELECT name, age FROM siblings
           WHERE age = (SELECT MIN(age) FROM siblings)
       register: age_extremes
 
@@ -177,14 +177,14 @@
     - name: Show final summary
       debug:
         msg: |
-          
+
           🎉 FAMILY DATABASE SETUP COMPLETE! 🎉
-          
+
           📁 Database: {{ database_path }}
           💾 Backup: {{ backup_path }}
           👥 Siblings: {{ table_info.row_count }}
-          
+
           🔍 Quick verification command:
           sqlite3 {{ database_path }} "SELECT birth_order, name, age, favorite_color FROM siblings ORDER BY birth_order;"
-          
-          📊 Database size: {{ db_creation.size }} bytes 
+
+          📊 Database size: {{ db_creation.size }} bytes

@@ -211,11 +211,11 @@ A complete role that demonstrates SQLite database management operations.
       samccann.sqlite.sqlite_query:
         db: /var/lib/myapp/app.db
         query: |
-          SELECT 
+          SELECT
             name as table_name,
             (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=m.name) as exists,
             (SELECT COUNT(*) FROM pragma_table_info(m.name)) as column_count
-          FROM sqlite_master m 
+          FROM sqlite_master m
           WHERE type='table' AND name NOT LIKE 'sqlite_%'
         fetch: all
       register: db_stats

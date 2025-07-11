@@ -5,7 +5,7 @@
 # Usage:
 #   For local development (from within collection):
 #     ansible-playbook family_database.yml
-#   
+#
 #   With installed collection:
 #     ansible-playbook family_database.yml -e use_fqcn=true
 
@@ -15,7 +15,7 @@
   vars:
     database_path: "./family.db"
     backup_path: "./family_backup.db"
-    use_fqcn: false  # Set to true when using installed collection
+    use_fqcn: false # Set to true when using installed collection
     siblings_data:
       - { name: "David", birth_order: 1, age: 65, favorite_color: "Blue" }
       - { name: "Caryl", birth_order: 2, age: 63, favorite_color: "Green" }
@@ -34,7 +34,7 @@
       sqlite_db:
         path: "{{ database_path }}"
         state: present
-        mode: '0644'
+        mode: "0644"
       register: db_creation
       when: not use_fqcn
 
@@ -42,7 +42,7 @@
       community.sqlite.sqlite_db:
         path: "{{ database_path }}"
         state: present
-        mode: '0644'
+        mode: "0644"
       register: db_creation
       when: use_fqcn
 
@@ -108,7 +108,7 @@
       sqlite_query:
         db: "{{ database_path }}"
         query: "INSERT INTO siblings (name, birth_order, age, favorite_color) VALUES (?, ?, ?, ?)"
-        parameters: 
+        parameters:
           - "{{ item.name }}"
           - "{{ item.birth_order }}"
           - "{{ item.age }}"
@@ -122,7 +122,7 @@
       community.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: "INSERT INTO siblings (name, birth_order, age, favorite_color) VALUES (?, ?, ?, ?)"
-        parameters: 
+        parameters:
           - "{{ item.name }}"
           - "{{ item.birth_order }}"
           - "{{ item.age }}"
@@ -160,14 +160,14 @@
       sqlite_query:
         db: "{{ database_path }}"
         query: |
-          SELECT 
-            id, 
-            name, 
-            birth_order, 
-            age, 
+          SELECT
+            id,
+            name,
+            birth_order,
+            age,
             favorite_color,
             datetime(created_at) as created_timestamp
-          FROM siblings 
+          FROM siblings
           ORDER BY birth_order
         fetch: all
       register: all_siblings
@@ -177,14 +177,14 @@
       community.sqlite.sqlite_query:
         db: "{{ database_path }}"
         query: |
-          SELECT 
-            id, 
-            name, 
-            birth_order, 
-            age, 
+          SELECT
+            id,
+            name,
+            birth_order,
+            age,
             favorite_color,
             datetime(created_at) as created_timestamp
-          FROM siblings 
+          FROM siblings
           ORDER BY birth_order
         fetch: all
       register: all_siblings
@@ -221,17 +221,17 @@
     - name: Display final summary
       debug:
         msg: |
-          
+
           🎉 FAMILY DATABASE CREATED SUCCESSFULLY! 🎉
-          
+
           📁 Database: {{ database_path }}
           💾 Backup: {{ backup_path }}
           👥 Siblings: {{ count_result.rows[0][0] }}
           📊 Database size: {{ db_creation.size }} bytes
           ⚡ Backup time: {{ backup_result.backup_time }}s
           ✅ Backup verified: {{ backup_result.verified }}
-          
+
           🔍 Quick verification commands:
           sqlite3 {{ database_path }} "SELECT birth_order, name, age, favorite_color FROM siblings ORDER BY birth_order;"
           sqlite3 {{ database_path }} ".schema siblings"
-          sqlite3 {{ database_path }} ".tables" 
+          sqlite3 {{ database_path }} ".tables"
