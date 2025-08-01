@@ -1,0 +1,197 @@
+---
+# Integration tests for sqlite_table module
+- name: Set test database and table names
+  ansible.builtin.set_fact:
+    test_db_path: "/tmp/test_sqlite_table.db"
+    test_table_name: "users"
+    test_table_name_2: "products"
+
+- name: Clean up any existing test database
+  ansible.builtin.file:
+    path: "{{ test_db_path }}"
+    state: absent
+
+- name: Create test database
+  samccann.sqlite.sqlite_db:
+    path: "{{ test_db_path }}"
+    state: present
+
+- name: Test table creation with basic columns
+  samccann.sqlite.sqlite_table:
+    db: "{{ test_db_path }}"
+    name: "{{ test_table_name }}"
+    state: present
+    columns:
+      - name: id
+        type: INTEGER
+        constraints: PRIMARY KEY AUTOINCREMENT
+      - name: username
+        type: TEXT
+        constraints: NOT NULL UNIQUE
+      - name: email
+        type: TEXT
+        constraints: NOT NULL
+  register: table_create_result
+
+- name: Verify table was created
+  ansible.builtin.assert:
+    that:
+      - table_create_result is changed
+      - table_create_result.table == test_table_name
+      - table_create_result.state == "present"
+
+- name: Test table creation (idempotent)
+  samccann.sqlite.sqlite_table:
+    db: "{{ test_db_path }}"
+    name: "{{ test_table_name }}"
+    state: present
+    columns:
+      - name: id
+        type: INTEGER
+        constraints: PRIMARY KEY AUTOINCREMENT
+      - name: username
+        type: TEXT
+        constraints: NOT NULL UNIQUE
+      - name: email
+        type: TEXT
+        constraints: NOT NULL
+  register: table_create_idempotent
+
+- name: Verify idempotent behavior
+  ansible.builtin.assert:
+    that:
+      - table_create_idempotent is not changed
+
+- name: Test table creation with if_not_exists
+  samccann.sqlite.sqlite_table:
+    db: "{{ test_db_path }}"
+    name: "{{ test_table_name_2 }}"
+    state: present
+    if_not_exists: true
+    columns:
+      - name: id
+        type: INTEGER
+        constraints: PRIMARY KEY
+      - name: name
+        type: TEXT
+      - name: price
+        type: REAL
+      - name: created_at
+        type: TIMESTAMP
+        constraints: DEFAULT CURRENT_TIMESTAMP
+  register: table_create_if_not_exists
+
+- name: Verify table created with if_not_exists
+  ansible.builtin.assert:
+    that:
+      - table_create_if_not_exists is changed
+      - table_create_if_not_exists.if_not_exists == true
+
+- name: Test getting table schema info
+  samccann.sqlite.sqlite_table:
+    db: "{{ test_db_path }}"
+    name: "{{ test_table_name }}"
+    state: present
+    get_info: true
+  register: table_info_result
+
+- name: Verify table info is returned
+  ansible.builtin.assert:
+    that:
+      - table_info_result.schema is defined
+      - table_info_result.schema | length > 0
+      - table_info_result.columns is defined
+      - table_info_result.columns | length == 3
+
+- name: Test table creation with complex constraints
+  samccann.sqlite.sqlite_table:
+    db: "{{ test_db_path }}"
+    name: "orders"
+    state: present
+    columns:
+      - name: order_id
+        type: INTEGER
+        constraints: PRIMARY KEY AUTOINCREMENT
+      - name: user_id
+        type: INTEGER
+        constraints: NOT NULL
+      - name: product_id
+        type: INTEGER
+        constraints: NOT NULL
+      - name: quantity
+        type: INTEGER
+        constraints: DEFAULT 1 CHECK(quantity > 0)
+      - name: order_date
+        type: TIMESTAMP
+        constraints: DEFAULT CURRENT_TIMESTAMP
+    foreign_keys:
+      - "FOREIGN KEY (user_id) REFERENCES users(id)"
+      - "FOREIGN KEY (product_id) REFERENCES products(id)"
+  register: table_create_complex
+
+- name: Verify complex table creation
+  ansible.builtin.assert:
+    that:
+      - table_create_complex is changed
+      - table_create_complex.foreign_keys is defined
+
+- name: Test table deletion
+  samccann.sqlite.sqlite_table:
+    db: "{{ test_db_path }}"
+    name: "orders"
+    state: absent
+  register: table_delete_result
+
+- name: Verify table was deleted
+  ansible.builtin.assert:
+    that:
+      - table_delete_result is changed
+      - table_delete_result.state == "absent"
+
+- name: Test table deletion (idempotent)
+  samccann.sqlite.sqlite_table:
+    db: "{{ test_db_path }}"
+    name: "orders"
+    state: absent
+  register: table_delete_idempotent
+
+- name: Verify idempotent deletion
+  ansible.builtin.assert:
+    that:
+      - table_delete_idempotent is not changed
+
+- name: Test table creation on non-existent database
+  samccann.sqlite.sqlite_table:
+    db: "/tmp/nonexistent.db"
+    name: "test_table"
+    state: present
+    columns:
+      - name: id
+        type: INTEGER
+  register: table_nonexistent_db
+  failed_when: false
+
+- name: Verify error for non-existent database
+  ansible.builtin.assert:
+    that:
+      - table_nonexistent_db is failed
+      - "'database file does not exist' in table_nonexistent_db.msg or 'unable to open database file' in table_nonexistent_db.msg"
+
+- name: Test table creation without columns
+  samccann.sqlite.sqlite_table:
+    db: "{{ test_db_path }}"
+    name: "empty_table"
+    state: present
+  register: table_no_columns
+  failed_when: false
+
+- name: Verify error for table without columns
+  ansible.builtin.assert:
+    that:
+      - table_no_columns is failed
+      - "'columns are required' in table_no_columns.msg"
+
+- name: Clean up test database
+  ansible.builtin.file:
+    path: "{{ test_db_path }}"
+    state: absent

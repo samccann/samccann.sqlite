@@ -1,0 +1,233 @@
+---
+# Integration tests for sqlite_query module
+- name: Set test database path
+  ansible.builtin.set_fact:
+    test_db_path: "/tmp/test_sqlite_query.db"
+
+- name: Clean up any existing test database
+  ansible.builtin.file:
+    path: "{{ test_db_path }}"
+    state: absent
+
+- name: Create test database
+  samccann.sqlite.sqlite_db:
+    path: "{{ test_db_path }}"
+    state: present
+
+- name: Create test table
+  samccann.sqlite.sqlite_table:
+    db: "{{ test_db_path }}"
+    name: "users"
+    state: present
+    columns:
+      - name: id
+        type: INTEGER
+        constraints: PRIMARY KEY AUTOINCREMENT
+      - name: username
+        type: TEXT
+        constraints: NOT NULL UNIQUE
+      - name: email
+        type: TEXT
+        constraints: NOT NULL
+      - name: age
+        type: INTEGER
+      - name: created_at
+        type: TIMESTAMP
+        constraints: DEFAULT CURRENT_TIMESTAMP
+
+- name: Test INSERT query
+  samccann.sqlite.sqlite_query:
+    db: "{{ test_db_path }}"
+    query: "INSERT INTO users (username, email, age) VALUES ('john_doe', 'john@example.com', 25)"
+  register: insert_result
+
+- name: Verify INSERT query result
+  ansible.builtin.assert:
+    that:
+      - insert_result is changed
+      - insert_result.rowcount == 1
+      - insert_result.lastrowid is defined
+      - insert_result.lastrowid == 1
+
+- name: Test parameterized INSERT query
+  samccann.sqlite.sqlite_query:
+    db: "{{ test_db_path }}"
+    query: "INSERT INTO users (username, email, age) VALUES (?, ?, ?)"
+    parameters:
+      - "jane_doe"
+      - "jane@example.com"
+      - 30
+  register: insert_param_result
+
+- name: Verify parameterized INSERT
+  ansible.builtin.assert:
+    that:
+      - insert_param_result is changed
+      - insert_param_result.rowcount == 1
+      - insert_param_result.lastrowid == 2
+
+- name: Test SELECT query with fetch all
+  samccann.sqlite.sqlite_query:
+    db: "{{ test_db_path }}"
+    query: "SELECT * FROM users ORDER BY id"
+    fetch: all
+  register: select_all_result
+
+- name: Verify SELECT all results
+  ansible.builtin.assert:
+    that:
+      - select_all_result is not changed
+      - select_all_result.query_result | length == 2
+      - select_all_result.query_result[0].username == "john_doe"
+      - select_all_result.query_result[1].username == "jane_doe"
+
+- name: Test SELECT query with fetch one
+  samccann.sqlite.sqlite_query:
+    db: "{{ test_db_path }}"
+    query: "SELECT * FROM users WHERE age > ? ORDER BY age"
+    parameters: [20]
+    fetch: one
+  register: select_one_result
+
+- name: Verify SELECT one result
+  ansible.builtin.assert:
+    that:
+      - select_one_result is not changed
+      - select_one_result.query_result.username == "john_doe"
+      - select_one_result.query_result.age == 25
+
+- name: Test SELECT query with fetch many
+  samccann.sqlite.sqlite_query:
+    db: "{{ test_db_path }}"
+    query: "SELECT username, email FROM users"
+    fetch: many
+    fetch_size: 1
+  register: select_many_result
+
+- name: Verify SELECT many result
+  ansible.builtin.assert:
+    that:
+      - select_many_result is not changed
+      - select_many_result.query_result | length == 1
+      - select_many_result.query_result[0].username is defined
+
+- name: Test UPDATE query
+  samccann.sqlite.sqlite_query:
+    db: "{{ test_db_path }}"
+    query: "UPDATE users SET age = ? WHERE username = ?"
+    parameters: [26, "john_doe"]
+  register: update_result
+
+- name: Verify UPDATE result
+  ansible.builtin.assert:
+    that:
+      - update_result is changed
+      - update_result.rowcount == 1
+
+- name: Verify UPDATE took effect
+  samccann.sqlite.sqlite_query:
+    db: "{{ test_db_path }}"
+    query: "SELECT age FROM users WHERE username = 'john_doe'"
+    fetch: one
+  register: verify_update
+
+- name: Check updated value
+  ansible.builtin.assert:
+    that:
+      - verify_update.query_result.age == 26
+
+- name: Test DELETE query
+  samccann.sqlite.sqlite_query:
+    db: "{{ test_db_path }}"
+    query: "DELETE FROM users WHERE age > ?"
+    parameters: [28]
+  register: delete_result
+
+- name: Verify DELETE result
+  ansible.builtin.assert:
+    that:
+      - delete_result is changed
+      - delete_result.rowcount == 1
+
+- name: Test query returning no results
+  samccann.sqlite.sqlite_query:
+    db: "{{ test_db_path }}"
+    query: "SELECT * FROM users WHERE age > 100"
+    fetch: all
+  register: no_results
+
+- name: Verify no results handling
+  ansible.builtin.assert:
+    that:
+      - no_results is not changed
+      - no_results.query_result | length == 0
+
+- name: Test DDL query (CREATE INDEX)
+  samccann.sqlite.sqlite_query:
+    db: "{{ test_db_path }}"
+    query: "CREATE INDEX idx_username ON users(username)"
+  register: ddl_result
+
+- name: Verify DDL query
+  ansible.builtin.assert:
+    that:
+      - ddl_result is changed
+      - ddl_result.rowcount == -1 # DDL queries typically return -1
+
+- name: Test query with syntax error
+  samccann.sqlite.sqlite_query:
+    db: "{{ test_db_path }}"
+    query: "INVALID SQL SYNTAX"
+  register: syntax_error
+  failed_when: false
+
+- name: Verify syntax error handling
+  ansible.builtin.assert:
+    that:
+      - syntax_error is failed
+      - "'syntax error' in syntax_error.msg"
+
+- name: Test query on non-existent database
+  samccann.sqlite.sqlite_query:
+    db: "/tmp/nonexistent.db"
+    query: "SELECT 1"
+  register: nonexistent_db
+  failed_when: false
+
+- name: Verify error for non-existent database
+  ansible.builtin.assert:
+    that:
+      - nonexistent_db is failed
+      - "'unable to open database file' in nonexistent_db.msg or 'database file does not exist' in nonexistent_db.msg"
+
+- name: Test parameter mismatch
+  samccann.sqlite.sqlite_query:
+    db: "{{ test_db_path }}"
+    query: "SELECT * FROM users WHERE age = ? AND username = ?"
+    parameters: [25] # Missing second parameter
+  register: param_mismatch
+  failed_when: false
+
+- name: Verify parameter mismatch error
+  ansible.builtin.assert:
+    that:
+      - param_mismatch is failed
+      - "'parameter' in param_mismatch.msg"
+
+- name: Test transaction behavior with multiple queries
+  samccann.sqlite.sqlite_query:
+    db: "{{ test_db_path }}"
+    query: |
+      INSERT INTO users (username, email, age) VALUES ('test1', 'test1@example.com', 20);
+      INSERT INTO users (username, email, age) VALUES ('test2', 'test2@example.com', 22);
+  register: transaction_result
+
+- name: Verify transaction result
+  ansible.builtin.assert:
+    that:
+      - transaction_result is changed
+
+- name: Clean up test database
+  ansible.builtin.file:
+    path: "{{ test_db_path }}"
+    state: absent

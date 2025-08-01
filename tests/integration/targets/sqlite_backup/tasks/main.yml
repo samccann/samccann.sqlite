@@ -1,0 +1,280 @@
+---
+# Integration tests for sqlite_backup module
+- name: Set test database and backup paths
+  ansible.builtin.set_fact:
+    source_db_path: "/tmp/test_source.db"
+    backup_db_path: "/tmp/test_backup.db"
+    restore_db_path: "/tmp/test_restore.db"
+    compressed_backup_path: "/tmp/test_backup.db.gz"
+
+- name: Clean up any existing test files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ source_db_path }}"
+    - "{{ backup_db_path }}"
+    - "{{ restore_db_path }}"
+    - "{{ compressed_backup_path }}"
+
+- name: Create source database
+  samccann.sqlite.sqlite_db:
+    path: "{{ source_db_path }}"
+    state: present
+
+- name: Create test table in source database
+  samccann.sqlite.sqlite_table:
+    db: "{{ source_db_path }}"
+    name: "test_data"
+    state: present
+    columns:
+      - name: id
+        type: INTEGER
+        constraints: PRIMARY KEY AUTOINCREMENT
+      - name: name
+        type: TEXT
+        constraints: NOT NULL
+      - name: value
+        type: INTEGER
+
+- name: Insert test data
+  samccann.sqlite.sqlite_query:
+    db: "{{ source_db_path }}"
+    query: "INSERT INTO test_data (name, value) VALUES (?, ?)"
+    parameters:
+      - "test_record_{{ item }}"
+      - "{{ item * 10 }}"
+  loop: [1, 2, 3, 4, 5]
+
+- name: Test backup operation
+  samccann.sqlite.sqlite_backup:
+    src: "{{ source_db_path }}"
+    dest: "{{ backup_db_path }}"
+    operation: backup
+  register: backup_result
+
+- name: Verify backup operation
+  ansible.builtin.assert:
+    that:
+      - backup_result is changed
+      - backup_result.operation == "backup"
+      - backup_result.src == source_db_path
+      - backup_result.dest == backup_db_path
+
+- name: Check if backup file exists
+  ansible.builtin.stat:
+    path: "{{ backup_db_path }}"
+  register: backup_file_stat
+
+- name: Verify backup file was created
+  ansible.builtin.assert:
+    that:
+      - backup_file_stat.stat.exists
+      - backup_file_stat.stat.size > 0
+
+- name: Test backup with compression
+  samccann.sqlite.sqlite_backup:
+    src: "{{ source_db_path }}"
+    dest: "{{ compressed_backup_path }}"
+    operation: backup
+    compress: true
+  register: compressed_backup_result
+
+- name: Verify compressed backup
+  ansible.builtin.assert:
+    that:
+      - compressed_backup_result is changed
+      - compressed_backup_result.compress == true
+
+- name: Check if compressed backup file exists
+  ansible.builtin.stat:
+    path: "{{ compressed_backup_path }}"
+  register: compressed_backup_stat
+
+- name: Verify compressed backup file was created
+  ansible.builtin.assert:
+    that:
+      - compressed_backup_stat.stat.exists
+      - compressed_backup_stat.stat.size > 0
+
+- name: Test verify operation on good backup
+  samccann.sqlite.sqlite_backup:
+    src: "{{ source_db_path }}"
+    dest: "{{ backup_db_path }}"
+    operation: verify
+  register: verify_good_result
+
+- name: Verify good backup verification
+  ansible.builtin.assert:
+    that:
+      - verify_good_result is not changed
+      - verify_good_result.operation == "verify"
+      - verify_good_result.verified == true
+
+- name: Test restore operation
+  samccann.sqlite.sqlite_backup:
+    src: "{{ backup_db_path }}"
+    dest: "{{ restore_db_path }}"
+    operation: restore
+  register: restore_result
+
+- name: Verify restore operation
+  ansible.builtin.assert:
+    that:
+      - restore_result is changed
+      - restore_result.operation == "restore"
+
+- name: Check if restored database exists
+  ansible.builtin.stat:
+    path: "{{ restore_db_path }}"
+  register: restore_file_stat
+
+- name: Verify restored database file exists
+  ansible.builtin.assert:
+    that:
+      - restore_file_stat.stat.exists
+      - restore_file_stat.stat.size > 0
+
+- name: Verify restored data integrity
+  samccann.sqlite.sqlite_query:
+    db: "{{ restore_db_path }}"
+    query: "SELECT COUNT(*) as count FROM test_data"
+    fetch: one
+  register: restore_data_check
+
+- name: Verify data was restored correctly
+  ansible.builtin.assert:
+    that:
+      - restore_data_check.query_result.count == 5
+
+- name: Test restore with overwrite protection (should fail)
+  samccann.sqlite.sqlite_backup:
+    src: "{{ backup_db_path }}"
+    dest: "{{ restore_db_path }}"
+    operation: restore
+    overwrite: false
+  register: restore_no_overwrite
+  failed_when: false
+
+- name: Verify overwrite protection
+  ansible.builtin.assert:
+    that:
+      - restore_no_overwrite is failed
+      - "'already exists' in restore_no_overwrite.msg"
+
+- name: Test restore with overwrite enabled
+  samccann.sqlite.sqlite_backup:
+    src: "{{ backup_db_path }}"
+    dest: "{{ restore_db_path }}"
+    operation: restore
+    overwrite: true
+  register: restore_with_overwrite
+
+- name: Verify restore with overwrite
+  ansible.builtin.assert:
+    that:
+      - restore_with_overwrite is changed
+      - restore_with_overwrite.overwrite == true
+
+- name: Test backup idempotency (should not change existing backup)
+  samccann.sqlite.sqlite_backup:
+    src: "{{ source_db_path }}"
+    dest: "{{ backup_db_path }}"
+    operation: backup
+    overwrite: false
+  register: backup_idempotent
+  failed_when: false
+
+- name: Verify backup idempotency
+  ansible.builtin.assert:
+    that:
+      - backup_idempotent is failed
+      - "'already exists' in backup_idempotent.msg"
+
+- name: Test backup with force overwrite
+  samccann.sqlite.sqlite_backup:
+    src: "{{ source_db_path }}"
+    dest: "{{ backup_db_path }}"
+    operation: backup
+    overwrite: true
+  register: backup_force
+
+- name: Verify forced backup
+  ansible.builtin.assert:
+    that:
+      - backup_force is changed
+      - backup_force.overwrite == true
+
+- name: Test backup of non-existent source
+  samccann.sqlite.sqlite_backup:
+    src: "/tmp/nonexistent.db"
+    dest: "/tmp/backup_nonexistent.db"
+    operation: backup
+  register: backup_nonexistent
+  failed_when: false
+
+- name: Verify error for non-existent source
+  ansible.builtin.assert:
+    that:
+      - backup_nonexistent is failed
+      - "'source database does not exist' in backup_nonexistent.msg or 'unable to open database file' in backup_nonexistent.msg"
+
+- name: Test verify operation on non-existent backup
+  samccann.sqlite.sqlite_backup:
+    src: "{{ source_db_path }}"
+    dest: "/tmp/nonexistent_backup.db"
+    operation: verify
+  register: verify_nonexistent
+  failed_when: false
+
+- name: Verify error for non-existent backup
+  ansible.builtin.assert:
+    that:
+      - verify_nonexistent is failed
+      - "'backup file does not exist' in verify_nonexistent.msg"
+
+- name: Create corrupted backup file for testing
+  ansible.builtin.copy:
+    content: "This is not a valid SQLite database"
+    dest: "/tmp/corrupted_backup.db"
+    mode: "0644"
+
+- name: Test verify operation on corrupted backup
+  samccann.sqlite.sqlite_backup:
+    src: "{{ source_db_path }}"
+    dest: "/tmp/corrupted_backup.db"
+    operation: verify
+  register: verify_corrupted
+  failed_when: false
+
+- name: Verify error for corrupted backup
+  ansible.builtin.assert:
+    that:
+      - verify_corrupted is failed
+      - "'not a database' in verify_corrupted.msg or 'corruption' in verify_corrupted.msg"
+
+- name: Test restore from compressed backup
+  samccann.sqlite.sqlite_backup:
+    src: "{{ compressed_backup_path }}"
+    dest: "/tmp/restore_from_compressed.db"
+    operation: restore
+    compress: true
+  register: restore_compressed
+
+- name: Verify restore from compressed backup
+  ansible.builtin.assert:
+    that:
+      - restore_compressed is changed
+      - restore_compressed.compress == true
+
+- name: Clean up all test files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ source_db_path }}"
+    - "{{ backup_db_path }}"
+    - "{{ restore_db_path }}"
+    - "{{ compressed_backup_path }}"
+    - "/tmp/corrupted_backup.db"
+    - "/tmp/restore_from_compressed.db"
