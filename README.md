@@ -1,10 +1,10 @@
-# Cursor SQLite Collection
+#  SQLite Collection
 
 This repository contains the `samccann.sqlite` Ansible Collection for managing SQLite databases.
 
 ## Description
 
-The Cursor SQLite Collection provides comprehensive modules and roles for managing SQLite databases, including:
+The SQLite Collection provides comprehensive modules and roles for managing SQLite databases, including:
 
 - **Database Management**: Create, delete, and configure SQLite databases
 - **Table Operations**: Create, drop, and inspect database tables
@@ -237,7 +237,7 @@ A complete role that demonstrates SQLite database management operations.
 
 Please read [CONTRIBUTING](CONTRIBUTING) for details on our code of conduct and the process for submitting pull requests.
 
-This collection was initially drafted  by assisted AI via Cursor and the claude-4-sonnet model.
+This collection was created through assisted AI via Cursor and the claude-4-sonnet model.
 
 ## License
 

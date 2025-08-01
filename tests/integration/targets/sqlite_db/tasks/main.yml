@@ -1,0 +1,126 @@
+---
+# Integration tests for sqlite_db module
+- name: Set test database path
+  ansible.builtin.set_fact:
+    test_db_path: "/tmp/test_sqlite_db.db"
+    test_db_path_2: "/tmp/test_sqlite_db_2.db"
+
+- name: Clean up any existing test databases
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ test_db_path }}"
+    - "{{ test_db_path_2 }}"
+
+- name: Test database creation (present state)
+  samccann.sqlite.sqlite_db:
+    path: "{{ test_db_path }}"
+    state: present
+  register: db_create_result
+
+- name: Verify database was created
+  ansible.builtin.assert:
+    that:
+      - db_create_result is changed
+      - db_create_result.path == test_db_path
+      - db_create_result.state == "present"
+
+- name: Check if database file exists
+  ansible.builtin.stat:
+    path: "{{ test_db_path }}"
+  register: db_file_stat
+
+- name: Verify database file exists
+  ansible.builtin.assert:
+    that:
+      - db_file_stat.stat.exists
+      - db_file_stat.stat.isreg
+
+- name: Test database creation (idempotent)
+  samccann.sqlite.sqlite_db:
+    path: "{{ test_db_path }}"
+    state: present
+  register: db_create_idempotent
+
+- name: Verify idempotent behavior
+  ansible.builtin.assert:
+    that:
+      - db_create_idempotent is not changed
+
+- name: Test database creation with mode
+  samccann.sqlite.sqlite_db:
+    path: "{{ test_db_path_2 }}"
+    state: present
+    mode: "0644"
+  register: db_create_mode
+
+- name: Verify database created with mode
+  ansible.builtin.assert:
+    that:
+      - db_create_mode is changed
+      - db_create_mode.mode == "0644"
+
+- name: Check file permissions
+  ansible.builtin.stat:
+    path: "{{ test_db_path_2 }}"
+  register: db_file_mode_stat
+
+- name: Verify file permissions are correct
+  ansible.builtin.assert:
+    that:
+      - db_file_mode_stat.stat.mode == "0644"
+
+- name: Test database deletion (absent state)
+  samccann.sqlite.sqlite_db:
+    path: "{{ test_db_path }}"
+    state: absent
+  register: db_delete_result
+
+- name: Verify database was deleted
+  ansible.builtin.assert:
+    that:
+      - db_delete_result is changed
+      - db_delete_result.state == "absent"
+
+- name: Check if database file was removed
+  ansible.builtin.stat:
+    path: "{{ test_db_path }}"
+  register: db_file_removed_stat
+
+- name: Verify database file does not exist
+  ansible.builtin.assert:
+    that:
+      - not db_file_removed_stat.stat.exists
+
+- name: Test database deletion (idempotent)
+  samccann.sqlite.sqlite_db:
+    path: "{{ test_db_path }}"
+    state: absent
+  register: db_delete_idempotent
+
+- name: Verify idempotent deletion
+  ansible.builtin.assert:
+    that:
+      - db_delete_idempotent is not changed
+
+- name: Test database creation in non-existent directory
+  samccann.sqlite.sqlite_db:
+    path: "/tmp/nonexistent/test.db"
+    state: present
+  register: db_create_nonexistent_dir
+  failed_when: false
+
+- name: Verify error for non-existent directory
+  ansible.builtin.assert:
+    that:
+      - db_create_nonexistent_dir is failed
+      - "'directory does not exist' in db_create_nonexistent_dir.msg or 'No such file or directory' in db_create_nonexistent_dir.msg"
+
+- name: Clean up test databases
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ test_db_path }}"
+    - "{{ test_db_path_2 }}"

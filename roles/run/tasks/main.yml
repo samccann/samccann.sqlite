@@ -11,7 +11,7 @@
     path: "{{ run_sqlite_db_path }}"
     state: present
     mode: "{{ run_sqlite_db_permissions }}"
-  register: db_creation
+  register: run_db_creation
 
 - name: Create users table
   samccann.sqlite.sqlite_table:
@@ -31,7 +31,7 @@
       - name: created_at
         type: TIMESTAMP
         constraints: DEFAULT CURRENT_TIMESTAMP
-  when: db_creation is succeeded
+  when: run_db_creation is succeeded
 
 - name: Insert sample data
   samccann.sqlite.sqlite_query:
@@ -49,15 +49,15 @@
     name: users
     state: present
     gather_info: true
-  register: users_table_info
+  register: run_users_table_info
 
 - name: Debug table information
   ansible.builtin.debug:
     msg:
-      - "Table: {{ users_table_info.table }}"
-      - "Exists: {{ users_table_info.exists }}"
-      - "Row count: {{ users_table_info.row_count | default('N/A') }}"
-      - "Columns: {{ users_table_info.columns | default([]) }}"
+      - "Table: {{ run_users_table_info.table }}"
+      - "Exists: {{ run_users_table_info.exists }}"
+      - "Row count: {{ run_users_table_info.row_count | default('N/A') }}"
+      - "Columns: {{ run_users_table_info.columns | default([]) }}"
 
 - name: Create database backup
   samccann.sqlite.sqlite_backup:
@@ -67,4 +67,4 @@
     verify_backup: true
   when:
     - run_create_backup | bool
-    - users_table_info.exists | default(false)
+    - run_users_table_info.exists | default(false)
