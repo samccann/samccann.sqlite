@@ -1,0 +1,360 @@
+---
+name: Test Collection
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run tests weekly on Sunday at 6:00 UTC
+    - cron: '0 6 * * 0'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Quick lint and security checks
+  lint:
+    name: Lint and Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-lint-${{ hashFiles('test-requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-lint-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r test-requirements.txt
+          pip install pre-commit ansible-core
+
+      - name: Install pre-commit hooks
+        run: pre-commit install
+
+      - name: Run pre-commit checks
+        run: pre-commit run --all-files --show-diff-on-failure
+
+      - name: Run ansible-lint
+        run: ansible-lint
+
+      - name: Run security scans
+        run: |
+          bandit -r plugins/ -f json -o bandit-report.json || true
+          safety check --json --output safety-report.json || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+
+  # Ansible sanity tests
+  sanity:
+    name: Ansible Sanity (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install ansible-core
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core
+
+      - name: Run ansible-test sanity
+        run: |
+          ansible-test sanity --docker -v --color
+
+      - name: Upload sanity test results
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: sanity-results-py${{ matrix.python-version }}
+          path: tests/output/
+
+  # Unit tests
+  units:
+    name: Unit Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-unit-${{ matrix.python-version }}-${{ hashFiles('test-requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-unit-${{ matrix.python-version }}-
+            ${{ runner.os }}-pip-unit-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r test-requirements.txt
+          pip install ansible-core
+
+      - name: Run unit tests with pytest
+        run: |
+          pytest tests/unit/ -v --tb=short --cov=plugins --cov-report=xml --cov-report=html
+
+      - name: Run ansible-test units
+        run: |
+          ansible-test units --docker -v --color
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        if: matrix.python-version == '3.11'
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Upload unit test results
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: unit-results-py${{ matrix.python-version }}
+          path: |
+            tests/output/
+            htmlcov/
+
+  # Integration tests
+  integration:
+    name: Integration Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+        test-target: ['sqlite_db', 'sqlite_table', 'sqlite_query', 'sqlite_backup']
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install ansible-core
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core
+
+      - name: Run integration tests
+        run: |
+          ansible-test integration ${{ matrix.test-target }} --docker -v --color
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: integration-results-${{ matrix.test-target }}-py${{ matrix.python-version }}
+          path: tests/output/
+
+  # Performance tests
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'  # Skip on scheduled runs
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core
+
+      - name: Run performance tests
+        run: |
+          ansible-playbook tests/performance/test_performance.yml -v
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: performance-results
+          path: tests/output/
+
+  # Example playbook tests
+  examples:
+    name: Example Playbooks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install ansible-core
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core
+
+      - name: Install collection locally
+        run: |
+          ansible-galaxy collection build
+          ansible-galaxy collection install *.tar.gz
+
+      - name: Test basic setup example
+        run: |
+          ansible-playbook examples/basic_setup.yml -v
+
+      - name: Test maintenance example
+        run: |
+          ansible-playbook examples/maintenance.yml -v
+
+      - name: Test family database playbooks
+        run: |
+          ansible-playbook playbooks/family_database_simple.yml -v
+          ansible-playbook playbooks/family_database_complete.yml -v
+
+  # Security-focused tests
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install ansible-core
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core
+
+      - name: Run security-focused integration tests
+        run: |
+          ansible-test integration sqlite_db --docker -v --color
+          ansible-test integration sqlite_table --docker -v --color
+
+      - name: Verify security test results
+        run: |
+          # Run specific security tests and verify they pass
+          ansible-playbook tests/integration/targets/sqlite_db/tasks/security_tests.yml -v
+          ansible-playbook tests/integration/targets/sqlite_table/tasks/security_tests.yml -v
+
+  # Collection build and galaxy upload test
+  build:
+    name: Build Collection
+    runs-on: ubuntu-latest
+    needs: [lint, sanity, units, integration]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install ansible-core
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core
+
+      - name: Build collection
+        run: |
+          ansible-galaxy collection build
+
+      - name: Verify collection structure
+        run: |
+          tar -tzf samccann-sqlite-*.tar.gz | head -20
+
+      - name: Test collection installation
+        run: |
+          ansible-galaxy collection install samccann-sqlite-*.tar.gz
+
+      - name: Upload collection artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: collection-build
+          path: samccann-sqlite-*.tar.gz
+
+  # Final status check
+  test-status:
+    name: Test Status
+    runs-on: ubuntu-latest
+    needs: [lint, sanity, units, integration, examples, security-tests, build]
+    if: always()
+    
+    steps:
+      - name: Check test results
+        run: |
+          echo "Lint: ${{ needs.lint.result }}"
+          echo "Sanity: ${{ needs.sanity.result }}"
+          echo "Units: ${{ needs.units.result }}"
+          echo "Integration: ${{ needs.integration.result }}"
+          echo "Examples: ${{ needs.examples.result }}"
+          echo "Security: ${{ needs.security-tests.result }}"
+          echo "Build: ${{ needs.build.result }}"
+
+      - name: Fail if any test failed
+        if: |
+          needs.lint.result == 'failure' ||
+          needs.sanity.result == 'failure' ||
+          needs.units.result == 'failure' ||
+          needs.integration.result == 'failure' ||
+          needs.examples.result == 'failure' ||
+          needs.security-tests.result == 'failure' ||
+          needs.build.result == 'failure'
+        run: exit 1

@@ -1,0 +1,126 @@
+---
+# SQL Injection Prevention Tests
+- name: SQL Injection Prevention Test Suite
+  hosts: localhost
+  gather_facts: false
+  vars:
+    test_db_path: "{{ test_db_path | default('/tmp/sql_injection_test.db') }}"
+    malicious_input: "{{ malicious_input | default(\"test'; DROP TABLE users; --\") }}"
+
+  tasks:
+    - name: Clean up any existing test database
+      ansible.builtin.file:
+        path: "{{ test_db_path }}"
+        state: absent
+
+    - name: Create test database
+      samccann.sqlite.sqlite_db:
+        path: "{{ test_db_path }}"
+        state: present
+
+    - name: Create test table
+      samccann.sqlite.sqlite_table:
+        db: "{{ test_db_path }}"
+        name: users
+        state: present
+        columns:
+          - name: id
+            type: INTEGER
+            constraints: PRIMARY KEY AUTOINCREMENT
+          - name: username
+            type: TEXT
+            constraints: NOT NULL
+          - name: email
+            type: TEXT
+
+    - name: Insert legitimate test data
+      samccann.sqlite.sqlite_query:
+        db: "{{ test_db_path }}"
+        query: "INSERT INTO users (username, email) VALUES (?, ?)"
+        parameters:
+          - "testuser"
+          - "test@example.com"
+
+    - name: Test SQL injection prevention in parameterized query
+      samccann.sqlite.sqlite_query:
+        db: "{{ test_db_path }}"
+        query: "SELECT * FROM users WHERE username = ?"
+        parameters:
+          - "{{ malicious_input }}"
+        fetch: all
+      register: injection_test_result
+
+    - name: Verify no SQL injection occurred
+      ansible.builtin.assert:
+        that:
+          - injection_test_result.rows | length == 0
+          - injection_test_result is not failed
+        fail_msg: "SQL injection vulnerability detected!"
+        success_msg: "✅ Parameterized queries prevent SQL injection"
+
+    - name: Verify table still exists after injection attempt
+      samccann.sqlite.sqlite_query:
+        db: "{{ test_db_path }}"
+        query: "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+        fetch: all
+      register: table_check
+
+    - name: Confirm table was not dropped
+      ansible.builtin.assert:
+        that:
+          - table_check.rows | length == 1
+          - table_check.rows[0][0] == "users"
+        fail_msg: "Table was dropped - SQL injection succeeded!"
+        success_msg: "✅ Table remains intact - SQL injection prevented"
+
+    - name: Verify original data still exists
+      samccann.sqlite.sqlite_query:
+        db: "{{ test_db_path }}"
+        query: "SELECT COUNT(*) FROM users WHERE username = 'testuser'"
+        fetch: one
+      register: data_check
+
+    - name: Confirm original data is preserved
+      ansible.builtin.assert:
+        that:
+          - data_check.rows[0][0] == 1
+        fail_msg: "Original data was lost!"
+        success_msg: "✅ Original data preserved"
+
+    - name: Test malicious table name prevention
+      samccann.sqlite.sqlite_table:
+        db: "{{ test_db_path }}"
+        name: "evil_table; DROP TABLE users; --"
+        state: present
+        columns:
+          - name: id
+            type: INTEGER
+      register: malicious_table_result
+      failed_when: false
+
+    - name: Verify malicious table name is rejected
+      ansible.builtin.assert:
+        that:
+          - malicious_table_result is failed
+          - "'Invalid SQL identifier' in malicious_table_result.msg or 'reserved keyword' in malicious_table_result.msg"
+        fail_msg: "Malicious table name was not rejected!"
+        success_msg: "✅ Malicious table names are properly rejected"
+
+    - name: Final security verification
+      samccann.sqlite.sqlite_query:
+        db: "{{ test_db_path }}"
+        query: "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
+        fetch: one
+      register: final_table_count
+
+    - name: Confirm only expected tables exist
+      ansible.builtin.assert:
+        that:
+          - final_table_count.rows[0][0] == 1  # Only 'users' table
+        fail_msg: "Unexpected tables found - possible security breach!"
+        success_msg: "✅ Security test passed - no unexpected tables created"
+
+    - name: Clean up test database
+      ansible.builtin.file:
+        path: "{{ test_db_path }}"
+        state: absent

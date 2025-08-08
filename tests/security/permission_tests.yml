@@ -1,0 +1,158 @@
+---
+# File Permission Security Tests
+- name: File Permission Security Test Suite
+  hosts: localhost
+  gather_facts: false
+  vars:
+    test_db_path: /tmp/permission_test.db
+    secure_db_path: /tmp/secure_permission_test.db
+
+  tasks:
+    - name: Clean up any existing test databases
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ test_db_path }}"
+        - "{{ secure_db_path }}"
+
+    - name: Test default database permissions
+      samccann.sqlite.sqlite_db:
+        path: "{{ test_db_path }}"
+        state: present
+      register: default_db_result
+
+    - name: Check default file permissions
+      ansible.builtin.stat:
+        path: "{{ test_db_path }}"
+      register: default_permissions
+
+    - name: Verify default permissions are not too permissive
+      ansible.builtin.assert:
+        that:
+          - default_permissions.stat.mode != "0666"
+          - default_permissions.stat.mode != "0777"
+        fail_msg: "Default permissions are too permissive: {{ default_permissions.stat.mode }}"
+        success_msg: "✅ Default permissions are appropriately restrictive"
+
+    - name: Test secure database creation with specific permissions
+      samccann.sqlite.sqlite_db:
+        path: "{{ secure_db_path }}"
+        state: present
+        mode: "0600"
+      register: secure_db_result
+
+    - name: Check secure file permissions
+      ansible.builtin.stat:
+        path: "{{ secure_db_path }}"
+      register: secure_permissions
+
+    - name: Verify secure permissions are correctly applied
+      ansible.builtin.assert:
+        that:
+          - secure_permissions.stat.mode == "0600"
+        fail_msg: "Secure permissions not correctly applied: expected 0600, got {{ secure_permissions.stat.mode }}"
+        success_msg: "✅ Secure permissions correctly applied"
+
+    - name: Test permission modification on existing database
+      samccann.sqlite.sqlite_db:
+        path: "{{ test_db_path }}"
+        state: present
+        mode: "0640"
+      register: modified_permissions_result
+
+    - name: Check modified permissions
+      ansible.builtin.stat:
+        path: "{{ test_db_path }}"
+      register: modified_permissions
+
+    - name: Verify permissions were modified correctly
+      ansible.builtin.assert:
+        that:
+          - modified_permissions.stat.mode == "0640"
+        fail_msg: "Permissions not modified correctly: expected 0640, got {{ modified_permissions.stat.mode }}"
+        success_msg: "✅ Permissions modified correctly"
+
+    - name: Test ownership setting (if running as root or with sudo)
+      samccann.sqlite.sqlite_db:
+        path: "{{ test_db_path }}"
+        state: present
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+      register: ownership_result
+      failed_when: false  # This might fail if not running with appropriate privileges
+
+    - name: Verify ownership (if test succeeded)
+      block:
+        - name: Check file ownership
+          ansible.builtin.stat:
+            path: "{{ test_db_path }}"
+          register: ownership_check
+
+        - name: Verify owner is correct
+          ansible.builtin.assert:
+            that:
+              - ownership_check.stat.pw_name == ansible_user or ownership_result is failed
+            fail_msg: "Ownership not set correctly"
+            success_msg: "✅ Ownership set correctly or test skipped due to privileges"
+      when: ownership_result is succeeded
+
+    - name: Test backup with secure permissions
+      samccann.sqlite.sqlite_backup:
+        src: "{{ secure_db_path }}"
+        dest: "{{ secure_db_path }}.backup"
+        operation: backup
+      register: backup_result
+
+    - name: Check backup file permissions
+      ansible.builtin.stat:
+        path: "{{ secure_db_path }}.backup"
+      register: backup_permissions
+
+    - name: Verify backup inherits appropriate permissions
+      ansible.builtin.assert:
+        that:
+          - backup_permissions.stat.mode != "0666"
+          - backup_permissions.stat.mode != "0777"
+        fail_msg: "Backup file has overly permissive permissions: {{ backup_permissions.stat.mode }}"
+        success_msg: "✅ Backup file has appropriate permissions"
+
+    - name: Test directory traversal protection
+      samccann.sqlite.sqlite_db:
+        path: "/tmp/../etc/evil.db"
+        state: present
+      register: traversal_test
+      failed_when: false
+
+    - name: Verify directory traversal is prevented
+      ansible.builtin.assert:
+        that:
+          - traversal_test is failed
+          - "'Directory traversal detected' in traversal_test.msg or 'invalid path' in traversal_test.msg or traversal_test.msg is search('path.*not.*allowed')"
+        fail_msg: "Directory traversal was not prevented!"
+        success_msg: "✅ Directory traversal properly prevented"
+
+    - name: Test relative path protection
+      samccann.sqlite.sqlite_db:
+        path: "../relative_path.db"
+        state: present
+      register: relative_path_test
+      failed_when: false
+
+    - name: Verify relative paths are rejected
+      ansible.builtin.assert:
+        that:
+          - relative_path_test is failed
+          - "'absolute' in relative_path_test.msg or 'invalid path' in relative_path_test.msg"
+        fail_msg: "Relative paths were not rejected!"
+        success_msg: "✅ Relative paths properly rejected"
+
+    - name: Clean up all test files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ test_db_path }}"
+        - "{{ secure_db_path }}"
+        - "{{ secure_db_path }}.backup"
+      failed_when: false

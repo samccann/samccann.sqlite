@@ -1,14 +1,302 @@
 ---
-name: Release samccann.sqlite
+name: Release Collection
 
-on: # yamllint disable-line rule:truthy
-  release:
-    types: [published]
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Perform a dry run (no actual release)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
-  release_automation_hub:
-    uses: ansible/ansible-content-actions/.github/workflows/release_galaxy.yaml@main
-    with:
-      environment: release
-    secrets:
-      ansible_galaxy_api_key: ${{ secrets.ANSIBLE_GALAXY_API_KEY }}
+  # Validate release
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      tag: ${{ steps.get-version.outputs.tag }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Get version from input or tag
+        id: get-version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            TAG="v${VERSION}"
+          else
+            TAG="${{ github.ref_name }}"
+            VERSION="${TAG#v}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
+          echo "Tag: ${TAG}"
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            echo "Expected format: X.Y.Z (e.g., 1.0.0)"
+            exit 1
+          fi
+          echo "✅ Version format is valid: $VERSION"
+
+      - name: Check if galaxy.yml version matches
+        run: |
+          GALAXY_VERSION=$(grep '^version:' galaxy.yml | sed 's/version: //' | tr -d '"' | tr -d "'")
+          RELEASE_VERSION="${{ steps.get-version.outputs.version }}"
+          
+          echo "Galaxy version: $GALAXY_VERSION"
+          echo "Release version: $RELEASE_VERSION"
+          
+          if [ "$GALAXY_VERSION" != "$RELEASE_VERSION" ]; then
+            echo "❌ Version mismatch!"
+            echo "galaxy.yml version: $GALAXY_VERSION"
+            echo "Release version: $RELEASE_VERSION"
+            echo "Please update galaxy.yml to match the release version"
+            exit 1
+          fi
+          echo "✅ Galaxy version matches release version"
+
+      - name: Check changelog exists
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          if ! grep -q "^  $VERSION:" changelogs/changelog.yaml; then
+            echo "❌ No changelog entry found for version $VERSION"
+            echo "Please add a changelog entry in changelogs/changelog.yaml"
+            exit 1
+          fi
+          echo "✅ Changelog entry found for version $VERSION"
+
+  # Run full test suite before release
+  test-before-release:
+    name: Test Before Release
+    needs: validate-release
+    uses: ./.github/workflows/test.yml
+
+  # Build and publish collection
+  build-and-release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, test-before-release]
+    environment: release
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install ansible-core
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core
+
+      - name: Build collection
+        run: |
+          ansible-galaxy collection build
+
+      - name: Get collection filename
+        id: collection-file
+        run: |
+          COLLECTION_FILE=$(ls samccann-sqlite-*.tar.gz)
+          echo "filename=${COLLECTION_FILE}" >> $GITHUB_OUTPUT
+          echo "Collection file: ${COLLECTION_FILE}"
+
+      - name: Verify collection structure
+        run: |
+          COLLECTION_FILE="${{ steps.collection-file.outputs.filename }}"
+          echo "📦 Collection contents:"
+          tar -tzf "${COLLECTION_FILE}" | head -20
+          
+          echo "📏 Collection size:"
+          ls -lh "${COLLECTION_FILE}"
+
+      - name: Test collection installation
+        run: |
+          COLLECTION_FILE="${{ steps.collection-file.outputs.filename }}"
+          ansible-galaxy collection install "${COLLECTION_FILE}"
+          
+          # Test that modules can be imported
+          python -c "
+          import sys
+          sys.path.insert(0, '~/.ansible/collections/ansible_collections/samccann/sqlite/plugins/modules')
+          try:
+              import sqlite_db, sqlite_table, sqlite_query, sqlite_backup
+              print('✅ All modules imported successfully')
+          except ImportError as e:
+              print(f'❌ Module import failed: {e}')
+              sys.exit(1)
+          "
+
+      - name: Create release notes
+        id: release-notes
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+          
+          # Extract changelog for this version
+          python3 -c "
+          import yaml
+          import sys
+          
+          with open('changelogs/changelog.yaml', 'r') as f:
+              changelog = yaml.safe_load(f)
+          
+          version = '$VERSION'
+          if version in changelog['releases']:
+              release_info = changelog['releases'][version]
+              
+              notes = []
+              notes.append(f'# Release {version}')
+              notes.append('')
+              
+              if 'changes' in release_info:
+                  changes = release_info['changes']
+                  
+                  if 'release_summary' in changes:
+                      notes.append('## Summary')
+                      notes.append(changes['release_summary'].strip())
+                      notes.append('')
+                  
+                  sections = [
+                      ('security_fixes', '🔒 Security Fixes'),
+                      ('major_changes', '🚀 Major Changes'),
+                      ('minor_changes', '✨ Minor Changes'),
+                      ('bugfixes', '🐛 Bug Fixes'),
+                      ('doc_changes', '📚 Documentation Changes')
+                  ]
+                  
+                  for key, title in sections:
+                      if key in changes and changes[key]:
+                          notes.append(f'## {title}')
+                          for item in changes[key]:
+                              notes.append(f'- {item}')
+                          notes.append('')
+              
+              release_notes = '\n'.join(notes)
+              
+              # Write to file for GitHub release
+              with open('release_notes.md', 'w') as f:
+                  f.write(release_notes)
+              
+              print('✅ Release notes generated')
+              print(release_notes)
+          else:
+              print(f'❌ No changelog found for version {version}')
+              sys.exit(1)
+          "
+
+      - name: Publish to Ansible Galaxy (dry run check)
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          echo "🧪 DRY RUN: Would publish to Ansible Galaxy"
+          echo "Collection: ${{ steps.collection-file.outputs.filename }}"
+          echo "Version: ${{ needs.validate-release.outputs.version }}"
+
+      - name: Publish to Ansible Galaxy
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          GALAXY_API_KEY: ${{ secrets.GALAXY_API_KEY }}
+        run: |
+          if [ -z "$GALAXY_API_KEY" ]; then
+            echo "❌ GALAXY_API_KEY secret not set"
+            echo "Please add your Ansible Galaxy API key to repository secrets"
+            exit 1
+          fi
+          
+          COLLECTION_FILE="${{ steps.collection-file.outputs.filename }}"
+          echo "🚀 Publishing ${COLLECTION_FILE} to Ansible Galaxy..."
+          
+          ansible-galaxy collection publish "${COLLECTION_FILE}" --api-key="${GALAXY_API_KEY}"
+          
+          echo "✅ Successfully published to Ansible Galaxy!"
+
+      - name: Create GitHub Release (dry run check)
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          echo "🧪 DRY RUN: Would create GitHub release"
+          echo "Tag: ${{ needs.validate-release.outputs.tag }}"
+          echo "Asset: ${{ steps.collection-file.outputs.filename }}"
+
+      - name: Create GitHub Release
+        if: github.event.inputs.dry_run != 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.validate-release.outputs.tag }}
+          name: Release ${{ needs.validate-release.outputs.version }}
+          body_path: release_notes.md
+          files: ${{ steps.collection-file.outputs.filename }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update collection documentation
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          echo "📚 Collection published successfully!"
+          echo "- 🌍 Ansible Galaxy: https://galaxy.ansible.com/samccann/sqlite"
+          echo "- 📋 GitHub Release: https://github.com/samccann/ansible_collections_samccann_sqlite/releases/tag/${{ needs.validate-release.outputs.tag }}"
+          echo "- 📦 Install: ansible-galaxy collection install samccann.sqlite:${{ needs.validate-release.outputs.version }}"
+
+  # Post-release tasks
+  post-release:
+    name: Post-release Tasks
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-and-release]
+    if: github.event.inputs.dry_run != 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Prepare next development cycle
+        run: |
+          # This could include:
+          # - Bumping version in galaxy.yml for next dev cycle
+          # - Creating new changelog fragment template
+          # - Updating documentation
+          
+          echo "🔄 Post-release tasks completed"
+          echo "Version ${{ needs.validate-release.outputs.version }} has been released successfully!"
+
+      - name: Notify team (if configured)
+        run: |
+          # Add notification logic here if needed
+          # (Slack, Discord, email, etc.)
+          echo "📢 Release notification sent (if configured)"
