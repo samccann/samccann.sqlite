@@ -120,6 +120,28 @@ from datetime import datetime
 from ansible.module_utils.basic import AnsibleModule
 
 
+def validate_database_path(path):
+    """Validate database file path to prevent directory traversal attacks"""
+    if not isinstance(path, str):
+        raise ValueError(f"Database path must be a string, got {type(path)}")
+    
+    # Resolve the path to prevent directory traversal
+    try:
+        resolved_path = os.path.realpath(path)
+    except (OSError, ValueError) as error:
+        raise ValueError(f"Invalid database path: {str(error)}")
+    
+    # Check for directory traversal attempts
+    if ".." in path or path != resolved_path:
+        raise ValueError(f"Directory traversal detected in path: {path}")
+    
+    # Ensure the path is absolute for security
+    if not os.path.isabs(resolved_path):
+        raise ValueError(f"Database path must be absolute: {path}")
+    
+    return resolved_path
+
+
 def create_database(path):
     """Create an SQLite database file"""
     try:
@@ -172,11 +194,19 @@ def main():  # pylint: disable=too-many-branches
     group = module.params["group"]
     backup = module.params["backup"]
 
+    # Validate database path for security
+    try:
+        validated_path = validate_database_path(path)
+    except ValueError as error:
+        module.fail_json(msg=f"Invalid database path: {str(error)}")
+
     result = {
         "changed": False,
-        "path": path,
+        "path": validated_path,
     }
 
+    # Use validated path for all operations
+    path = validated_path
     file_exists = os.path.exists(path)
 
     # Handle backup if requested and file exists

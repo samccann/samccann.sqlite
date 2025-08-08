@@ -191,6 +191,9 @@
       - table_no_columns is failed
       - "'columns are required' in table_no_columns.msg"
 
+- name: Run security tests
+  ansible.builtin.include_tasks: security_tests.yml
+
 - name: Clean up test database
   ansible.builtin.file:
     path: "{{ test_db_path }}"

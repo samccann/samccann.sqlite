@@ -1,0 +1,88 @@
+---
+# Security-focused tests for sqlite_db module
+- name: Test path validation - relative path
+  samccann.sqlite.sqlite_db:
+    path: "../test.db"
+    state: present
+  register: relative_path_result
+  failed_when: false
+
+- name: Verify relative path is rejected
+  ansible.builtin.assert:
+    that:
+      - relative_path_result is failed
+      - "'Database path must be absolute' in relative_path_result.msg"
+
+- name: Test path validation - directory traversal
+  samccann.sqlite.sqlite_db:
+    path: "/tmp/../etc/passwd.db"
+    state: present
+  register: traversal_result
+  failed_when: false
+
+- name: Verify directory traversal is rejected
+  ansible.builtin.assert:
+    that:
+      - traversal_result is failed
+      - "'Directory traversal detected' in traversal_result.msg"
+
+- name: Test backup functionality
+  block:
+    - name: Create test database with backup
+      samccann.sqlite.sqlite_db:
+        path: "/tmp/backup_test.db"
+        state: present
+        backup: true
+      register: backup_create_result
+
+    - name: Verify backup was created
+      ansible.builtin.assert:
+        that:
+          - backup_create_result is changed
+          - backup_create_result.backup_file is defined
+          
+    - name: Check backup file exists
+      ansible.builtin.stat:
+        path: "{{ backup_create_result.backup_file }}"
+      register: backup_file_stat
+
+    - name: Verify backup file exists
+      ansible.builtin.assert:
+        that:
+          - backup_file_stat.stat.exists
+
+  always:
+    - name: Clean up test files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/backup_test.db"
+        - "{{ backup_create_result.backup_file | default('') }}"
+      failed_when: false
+
+- name: Test permission validation
+  block:
+    - name: Create database with restrictive permissions
+      samccann.sqlite.sqlite_db:
+        path: "/tmp/secure_test.db"
+        state: present
+        mode: "0600"
+      register: secure_db_result
+
+    - name: Check file permissions
+      ansible.builtin.stat:
+        path: "/tmp/secure_test.db"
+      register: secure_file_stat
+
+    - name: Verify restrictive permissions
+      ansible.builtin.assert:
+        that:
+          - secure_file_stat.stat.mode == "0600"
+
+  always:
+    - name: Clean up secure test database
+      ansible.builtin.file:
+        path: "/tmp/secure_test.db"
+        state: absent
+      failed_when: false
