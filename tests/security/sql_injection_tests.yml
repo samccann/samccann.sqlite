@@ -5,7 +5,7 @@
   gather_facts: false
   vars:
     test_db_path: "{{ test_db_path | default('/tmp/sql_injection_test.db') }}"
-    malicious_input: "{{ malicious_input | default(\"test'; DROP TABLE users; --\") }}"
+    malicious_input: '{{ malicious_input | default("test''; DROP TABLE users; --") }}'
 
   tasks:
     - name: Clean up any existing test database
@@ -116,7 +116,7 @@
     - name: Confirm only expected tables exist
       ansible.builtin.assert:
         that:
-          - final_table_count.rows[0][0] == 1  # Only 'users' table
+          - final_table_count.rows[0][0] == 1 # Only 'users' table
         fail_msg: "Unexpected tables found - possible security breach!"
         success_msg: "✅ Security test passed - no unexpected tables created"
 

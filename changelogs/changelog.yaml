@@ -2,7 +2,7 @@
 ancestor: null
 releases:
   0.0.1:
-    release_date: '2024-01-01'
+    release_date: "2024-01-01"
     changes:
       release_summary: |
         Initial release of the SQLite Ansible Collection providing comprehensive SQLite database management capabilities.
@@ -10,7 +10,7 @@ releases:
         - name: sqlite_db
           description: Manage SQLite database files with permissions and ownership
         - name: sqlite_table
-          description: Create, drop, and inspect SQLite database tables  
+          description: Create, drop, and inspect SQLite database tables
         - name: sqlite_query
           description: Execute SQL queries with parameterized query support
         - name: sqlite_backup
@@ -19,7 +19,7 @@ releases:
         - name: run
           description: Complete demonstration role showing collection capabilities
   0.0.2:
-    release_date: '2025-01-08'
+    release_date: "2025-01-08"
     changes:
       release_summary: |
         Major security, performance, and functionality enhancements for the SQLite collection.

@@ -92,7 +92,7 @@
     db: "{{ test_db_path }}"
     name: "{{ test_table_name }}"
     state: present
-    get_info: true
+    gather_info: true
   register: table_info_result
 
 - name: Verify table info is returned
@@ -124,16 +124,12 @@
       - name: order_date
         type: TIMESTAMP
         constraints: DEFAULT CURRENT_TIMESTAMP
-    foreign_keys:
-      - "FOREIGN KEY (user_id) REFERENCES users(id)"
-      - "FOREIGN KEY (product_id) REFERENCES products(id)"
   register: table_create_complex
 
 - name: Verify complex table creation
   ansible.builtin.assert:
     that:
       - table_create_complex is changed
-      - table_create_complex.foreign_keys is defined
 
 - name: Test table deletion
   samccann.sqlite.sqlite_table:

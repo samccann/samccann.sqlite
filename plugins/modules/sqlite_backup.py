@@ -71,6 +71,7 @@ options:
         description:
             - Backup rotation settings
         type: dict
+        default: {}
         suboptions:
             keep_count:
                 description: Number of backups to keep
@@ -275,47 +276,47 @@ def calculate_checksum(file_path):
 def incremental_backup(src_path, dest_path, compress=False):
     """Create incremental backup using SQLite's backup API"""
     start_time = time.time()
-    
+
     # SQLite incremental backup using backup API
     try:
         src_conn = sqlite3.connect(src_path)
-        
+
         if compress:
             # For compressed incremental backups, we need a temporary file
             with tempfile.NamedTemporaryFile(delete=False) as temp_file:
                 temp_path = temp_file.name
-            
+
             dest_conn = sqlite3.connect(temp_path)
-            
+
             # Perform incremental backup
             backup = dest_conn.backup(src_conn)
             backup.step(-1)  # Copy all pages
             backup.finish()
-            
+
             dest_conn.close()
             src_conn.close()
-            
+
             # Compress the temporary file
             with open(temp_path, "rb") as src_file:
                 with gzip.open(dest_path, "wb") as dest_file:
                     shutil.copyfileobj(src_file, dest_file)
-            
+
             os.unlink(temp_path)
         else:
             dest_conn = sqlite3.connect(dest_path)
-            
+
             # Perform incremental backup
             backup = dest_conn.backup(src_conn)
             backup.step(-1)  # Copy all pages
             backup.finish()
-            
+
             dest_conn.close()
             src_conn.close()
-            
+
     except sqlite3.Error:
         # Fall back to regular file copy
         return backup_database(src_path, dest_path, compress)
-    
+
     end_time = time.time()
     return end_time - start_time
 
@@ -324,13 +325,13 @@ def rotate_backups(pattern, keep_count):
     """Rotate backup files, keeping only the specified number"""
     if not pattern:
         return []
-    
+
     # Find all matching backup files
     backup_files = glob.glob(pattern)
-    
+
     # Sort by modification time (newest first)
     backup_files.sort(key=os.path.getmtime, reverse=True)
-    
+
     # Remove old backups
     removed_files = []
     for old_backup in backup_files[keep_count:]:
@@ -339,7 +340,7 @@ def rotate_backups(pattern, keep_count):
             removed_files.append(old_backup)
         except OSError:
             pass  # Ignore errors removing old backups
-    
+
     return removed_files
 
 
@@ -413,10 +414,10 @@ def main():
                     backup_time = incremental_backup(src_path, dest_path, compress)
                 else:
                     backup_time = backup_database(src_path, dest_path, compress)
-                
+
                 result["backup_time"] = backup_time
                 result["dest_size"] = get_file_size(dest_path)
-                
+
                 # Generate checksum if requested
                 if checksum_enabled:
                     checksum = calculate_checksum(dest_path)

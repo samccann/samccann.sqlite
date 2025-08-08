@@ -144,23 +144,22 @@ changed:
 """
 
 import os
-import signal
 import sqlite3
 import threading
-import time
 
 from ansible.module_utils.basic import AnsibleModule
 
 
 class QueryTimeout(Exception):
     """Exception raised when query times out"""
+
     pass
 
 
 def execute_query_with_timeout(cursor, query, parameters, timeout):
     """Execute query with timeout using threading"""
     result = {"success": False, "error": None}
-    
+
     def target():
         try:
             if parameters:
@@ -170,19 +169,21 @@ def execute_query_with_timeout(cursor, query, parameters, timeout):
             result["success"] = True
         except Exception as e:
             result["error"] = e
-    
+
     thread = threading.Thread(target=target)
     thread.daemon = True
     thread.start()
     thread.join(timeout if timeout > 0 else None)
-    
+
     if thread.is_alive():
         # Query is still running, timeout occurred
         raise QueryTimeout(f"Query timed out after {timeout} seconds")
-    
-    if result["error"]:
-        raise result["error"]
-    
+
+    # Check if an error occurred during execution
+    error = result.get("error")
+    if error is not None:
+        raise error
+
     return result["success"]
 
 

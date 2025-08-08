@@ -16,7 +16,7 @@ When using this collection:
   samccann.sqlite.sqlite_db:
     path: /var/lib/app/secure.db
     state: present
-    mode: '0640'
+    mode: "0640"
     owner: appuser
     group: appgroup
 

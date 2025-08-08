@@ -9,6 +9,7 @@ This guide covers common issues and solutions when using the SQLite Ansible Coll
 **Problem**: `database is locked` error when trying to access SQLite database
 
 **Causes**:
+
 - Another process has an open connection to the database
 - Previous operation didn't close connection properly
 - Database file permissions issues
@@ -17,12 +18,14 @@ This guide covers common issues and solutions when using the SQLite Ansible Coll
 **Solutions**:
 
 1. **Check for other processes**:
+
    ```bash
    lsof /path/to/database.db
    fuser /path/to/database.db
    ```
 
 2. **Clean up WAL files**:
+
    ```bash
    # Stop all processes using the database first
    rm /path/to/database.db-wal
@@ -30,12 +33,13 @@ This guide covers common issues and solutions when using the SQLite Ansible Coll
    ```
 
 3. **Use timeout in queries**:
+
    ```yaml
    - name: Query with timeout
      samccann.sqlite.sqlite_query:
        db: /path/to/database.db
        query: "SELECT * FROM table"
-       timeout: 30  # Wait up to 30 seconds
+       timeout: 30 # Wait up to 30 seconds
    ```
 
 4. **Check file permissions**:
@@ -51,17 +55,19 @@ This guide covers common issues and solutions when using the SQLite Ansible Coll
 **Solutions**:
 
 1. **Set proper ownership**:
+
    ```yaml
    - name: Create database with proper ownership
      samccann.sqlite.sqlite_db:
        path: /var/lib/app/database.db
        state: present
-       mode: '0640'
+       mode: "0640"
        owner: appuser
        group: appgroup
    ```
 
 2. **Check directory permissions**:
+
    ```bash
    # Ensure parent directory is writable
    chmod 755 /var/lib/app/
@@ -79,15 +85,17 @@ This guide covers common issues and solutions when using the SQLite Ansible Coll
 **Solutions**:
 
 1. **Increase timeout**:
+
    ```yaml
    - name: Long running query
      samccann.sqlite.sqlite_query:
        db: /path/to/database.db
        query: "SELECT * FROM large_table"
-       timeout: 300  # 5 minutes
+       timeout: 300 # 5 minutes
    ```
 
 2. **Optimize database performance**:
+
    ```yaml
    - name: Optimize database
      samccann.sqlite.sqlite_db:
@@ -121,6 +129,7 @@ This guide covers common issues and solutions when using the SQLite Ansible Coll
 **Solutions**:
 
 1. **Verify source database first**:
+
    ```yaml
    - name: Check database integrity before backup
      samccann.sqlite.sqlite_db:
@@ -131,6 +140,7 @@ This guide covers common issues and solutions when using the SQLite Ansible Coll
    ```
 
 2. **Use incremental backups for large databases**:
+
    ```yaml
    - name: Create incremental backup
      samccann.sqlite.sqlite_backup:
@@ -153,6 +163,7 @@ This guide covers common issues and solutions when using the SQLite Ansible Coll
 **Solutions**:
 
 1. **Ensure foreign keys are enabled**:
+
    ```yaml
    - name: Create database with foreign keys
      samccann.sqlite.sqlite_db:
@@ -162,6 +173,7 @@ This guide covers common issues and solutions when using the SQLite Ansible Coll
    ```
 
 2. **Check constraint definitions**:
+
    ```yaml
    - name: Get table info
      samccann.sqlite.sqlite_table:
@@ -187,40 +199,43 @@ This guide covers common issues and solutions when using the SQLite Ansible Coll
 **Solutions**:
 
 1. **Optimize database settings**:
+
    ```yaml
    - name: Optimize for performance
      samccann.sqlite.sqlite_db:
        path: /path/to/database.db
        state: present
        performance:
-         journal_mode: WAL  # Write-Ahead Logging
-         synchronous: 1     # Normal synchronization
+         journal_mode: WAL # Write-Ahead Logging
+         synchronous: 1 # Normal synchronization
          cache_size: -32768 # 32MB cache
-         temp_store: 2      # Use memory for temp files
+         temp_store: 2 # Use memory for temp files
    ```
 
 2. **Regular maintenance**:
+
    ```yaml
    - name: Regular database maintenance
      samccann.sqlite.sqlite_db:
        path: /path/to/database.db
        state: present
        maintenance:
-         vacuum: true    # Reclaim space
-         analyze: true   # Update statistics
+         vacuum: true # Reclaim space
+         analyze: true # Update statistics
    ```
 
 3. **Monitor database size**:
+
    ```yaml
    - name: Check database size
      ansible.builtin.stat:
        path: /path/to/database.db
      register: db_stat
-   
+
    - name: Alert if database too large
      ansible.builtin.fail:
        msg: "Database size {{ db_stat.stat.size }} exceeds limit"
-     when: db_stat.stat.size > 1073741824  # 1GB
+     when: db_stat.stat.size > 1073741824 # 1GB
    ```
 
 ## Debugging Tips
@@ -298,11 +313,11 @@ If you continue to experience issues:
 
 ## Common Error Messages
 
-| Error Message | Likely Cause | Solution |
-|---------------|--------------|----------|
-| `database is locked` | Concurrent access | Use timeouts, check for other processes |
-| `no such table` | Table doesn't exist | Create table first or check spelling |
-| `UNIQUE constraint failed` | Duplicate key insertion | Use `INSERT OR IGNORE` or check data |
-| `Permission denied` | File permissions | Fix ownership/permissions |
-| `Query timed out` | Long-running operation | Increase timeout or optimize query |
-| `Invalid SQL identifier` | Special characters in names | Use valid SQL identifiers only |
+| Error Message              | Likely Cause                | Solution                                |
+| -------------------------- | --------------------------- | --------------------------------------- |
+| `database is locked`       | Concurrent access           | Use timeouts, check for other processes |
+| `no such table`            | Table doesn't exist         | Create table first or check spelling    |
+| `UNIQUE constraint failed` | Duplicate key insertion     | Use `INSERT OR IGNORE` or check data    |
+| `Permission denied`        | File permissions            | Fix ownership/permissions               |
+| `Query timed out`          | Long-running operation      | Increase timeout or optimize query      |
+| `Invalid SQL identifier`   | Special characters in names | Use valid SQL identifiers only          |

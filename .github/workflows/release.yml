@@ -29,7 +29,7 @@ jobs:
     outputs:
       version: ${{ steps.get-version.outputs.version }}
       tag: ${{ steps.get-version.outputs.tag }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -70,10 +70,10 @@ jobs:
         run: |
           GALAXY_VERSION=$(grep '^version:' galaxy.yml | sed 's/version: //' | tr -d '"' | tr -d "'")
           RELEASE_VERSION="${{ steps.get-version.outputs.version }}"
-          
+
           echo "Galaxy version: $GALAXY_VERSION"
           echo "Release version: $RELEASE_VERSION"
-          
+
           if [ "$GALAXY_VERSION" != "$RELEASE_VERSION" ]; then
             echo "❌ Version mismatch!"
             echo "galaxy.yml version: $GALAXY_VERSION"
@@ -105,7 +105,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [validate-release, test-before-release]
     environment: release
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -136,7 +136,7 @@ jobs:
           COLLECTION_FILE="${{ steps.collection-file.outputs.filename }}"
           echo "📦 Collection contents:"
           tar -tzf "${COLLECTION_FILE}" | head -20
-          
+
           echo "📏 Collection size:"
           ls -lh "${COLLECTION_FILE}"
 
@@ -144,7 +144,7 @@ jobs:
         run: |
           COLLECTION_FILE="${{ steps.collection-file.outputs.filename }}"
           ansible-galaxy collection install "${COLLECTION_FILE}"
-          
+
           # Test that modules can be imported
           python -c "
           import sys
@@ -161,31 +161,31 @@ jobs:
         id: release-notes
         run: |
           VERSION="${{ needs.validate-release.outputs.version }}"
-          
+
           # Extract changelog for this version
           python3 -c "
           import yaml
           import sys
-          
+
           with open('changelogs/changelog.yaml', 'r') as f:
               changelog = yaml.safe_load(f)
-          
+
           version = '$VERSION'
           if version in changelog['releases']:
               release_info = changelog['releases'][version]
-              
+
               notes = []
               notes.append(f'# Release {version}')
               notes.append('')
-              
+
               if 'changes' in release_info:
                   changes = release_info['changes']
-                  
+
                   if 'release_summary' in changes:
                       notes.append('## Summary')
                       notes.append(changes['release_summary'].strip())
                       notes.append('')
-                  
+
                   sections = [
                       ('security_fixes', '🔒 Security Fixes'),
                       ('major_changes', '🚀 Major Changes'),
@@ -193,20 +193,20 @@ jobs:
                       ('bugfixes', '🐛 Bug Fixes'),
                       ('doc_changes', '📚 Documentation Changes')
                   ]
-                  
+
                   for key, title in sections:
                       if key in changes and changes[key]:
                           notes.append(f'## {title}')
                           for item in changes[key]:
                               notes.append(f'- {item}')
                           notes.append('')
-              
+
               release_notes = '\n'.join(notes)
-              
+
               # Write to file for GitHub release
               with open('release_notes.md', 'w') as f:
                   f.write(release_notes)
-              
+
               print('✅ Release notes generated')
               print(release_notes)
           else:
@@ -231,12 +231,12 @@ jobs:
             echo "Please add your Ansible Galaxy API key to repository secrets"
             exit 1
           fi
-          
+
           COLLECTION_FILE="${{ steps.collection-file.outputs.filename }}"
           echo "🚀 Publishing ${COLLECTION_FILE} to Ansible Galaxy..."
-          
+
           ansible-galaxy collection publish "${COLLECTION_FILE}" --api-key="${GALAXY_API_KEY}"
-          
+
           echo "✅ Successfully published to Ansible Galaxy!"
 
       - name: Create GitHub Release (dry run check)
@@ -273,7 +273,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [validate-release, build-and-release]
     if: github.event.inputs.dry_run != 'true'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -291,7 +291,7 @@ jobs:
           # - Bumping version in galaxy.yml for next dev cycle
           # - Creating new changelog fragment template
           # - Updating documentation
-          
+
           echo "🔄 Post-release tasks completed"
           echo "Version ${{ needs.validate-release.outputs.version }} has been released successfully!"
 

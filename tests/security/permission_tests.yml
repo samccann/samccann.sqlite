@@ -80,9 +80,10 @@
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
       register: ownership_result
-      failed_when: false  # This might fail if not running with appropriate privileges
+      failed_when: false # This might fail if not running with appropriate privileges
 
     - name: Verify ownership (if test succeeded)
+      when: ownership_result is not failed
       block:
         - name: Check file ownership
           ansible.builtin.stat:
@@ -95,7 +96,6 @@
               - ownership_check.stat.pw_name == ansible_user or ownership_result is failed
             fail_msg: "Ownership not set correctly"
             success_msg: "✅ Ownership set correctly or test skipped due to privileges"
-      when: ownership_result is succeeded
 
     - name: Test backup with secure permissions
       samccann.sqlite.sqlite_backup:

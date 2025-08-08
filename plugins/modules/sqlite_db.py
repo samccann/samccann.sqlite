@@ -61,6 +61,7 @@ options:
         description:
             - Perform database maintenance operations
         type: dict
+        default: {}
         suboptions:
             vacuum:
                 description: Run VACUUM to reclaim space
@@ -78,6 +79,7 @@ options:
         description:
             - Performance optimization settings
         type: dict
+        default: {}
         suboptions:
             journal_mode:
                 description: Set journal mode (DELETE, TRUNCATE, PERSIST, MEMORY, WAL, OFF)
@@ -205,21 +207,21 @@ def validate_database_path(path):
     """Validate database file path to prevent directory traversal attacks"""
     if not isinstance(path, str):
         raise ValueError(f"Database path must be a string, got {type(path)}")
-    
+
     # Resolve the path to prevent directory traversal
     try:
         resolved_path = os.path.realpath(path)
     except (OSError, ValueError) as error:
         raise ValueError(f"Invalid database path: {str(error)}")
-    
+
     # Check for directory traversal attempts
     if ".." in path or path != resolved_path:
         raise ValueError(f"Directory traversal detected in path: {path}")
-    
+
     # Ensure the path is absolute for security
     if not os.path.isabs(resolved_path):
         raise ValueError(f"Database path must be absolute: {path}")
-    
+
     return resolved_path
 
 
@@ -257,73 +259,73 @@ def create_backup(path):
 def perform_maintenance(path, maintenance_options):
     """Perform database maintenance operations"""
     results = {}
-    
+
     try:
         conn = sqlite3.connect(path)
         cursor = conn.cursor()
-        
+
         if maintenance_options.get("integrity_check", False):
             cursor.execute("PRAGMA integrity_check")
             result = cursor.fetchone()
             results["integrity_check"] = result[0] if result else "failed"
-        
+
         if maintenance_options.get("vacuum", False):
             cursor.execute("VACUUM")
             results["vacuum"] = True
-            
+
         if maintenance_options.get("analyze", False):
             cursor.execute("ANALYZE")
             results["analyze"] = True
-            
+
         conn.commit()
         conn.close()
-        
+
     except sqlite3.Error as error:
         results["error"] = str(error)
         return results
-    
+
     return results
 
 
 def apply_performance_settings(path, performance_options):
     """Apply performance optimization settings"""
     results = {}
-    
+
     try:
         conn = sqlite3.connect(path)
         cursor = conn.cursor()
-        
+
         # Set journal mode
         if "journal_mode" in performance_options:
             journal_mode = performance_options["journal_mode"]
             cursor.execute(f"PRAGMA journal_mode = {journal_mode}")
             result = cursor.fetchone()
             results["journal_mode"] = result[0] if result else journal_mode.lower()
-        
+
         # Set synchronous mode
         if "synchronous" in performance_options:
             synchronous = performance_options["synchronous"]
             cursor.execute(f"PRAGMA synchronous = {synchronous}")
             results["synchronous"] = synchronous
-            
+
         # Set cache size
         if "cache_size" in performance_options:
             cache_size = performance_options["cache_size"]
             cursor.execute(f"PRAGMA cache_size = {cache_size}")
             results["cache_size"] = cache_size
-            
+
         # Set temp store
         if "temp_store" in performance_options:
             temp_store = performance_options["temp_store"]
             cursor.execute(f"PRAGMA temp_store = {temp_store}")
             results["temp_store"] = temp_store
-            
+
         conn.close()
-        
+
     except sqlite3.Error as error:
         results["error"] = str(error)
         return results
-    
+
     return results
 
 
@@ -332,20 +334,20 @@ def configure_foreign_keys(path, enable_foreign_keys):
     try:
         conn = sqlite3.connect(path)
         cursor = conn.cursor()
-        
+
         if enable_foreign_keys:
             cursor.execute("PRAGMA foreign_keys = ON")
         else:
             cursor.execute("PRAGMA foreign_keys = OFF")
-            
+
         # Verify the setting
         cursor.execute("PRAGMA foreign_keys")
         result = cursor.fetchone()
         enabled = bool(result[0]) if result else False
-        
+
         conn.close()
         return enabled
-        
+
     except sqlite3.Error as error:
         raise sqlite3.Error(f"Failed to configure foreign keys: {str(error)}")
 

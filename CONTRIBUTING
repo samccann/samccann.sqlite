@@ -22,7 +22,7 @@ We welcome contributions to the SQLite Ansible Collection! This document outline
 ### Development Commands
 ```bash
 make test            # Run full test suite
-make lint            # Run code quality checks  
+make lint            # Run code quality checks
 make security        # Run security scans
 make format          # Format code automatically
 ```

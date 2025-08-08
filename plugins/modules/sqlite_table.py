@@ -153,17 +153,33 @@ def validate_sql_identifier(name):
     """Validate SQL identifier to prevent injection attacks"""
     if not isinstance(name, str):
         raise ValueError(f"SQL identifier must be a string, got {type(name)}")
-    
-    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name):
+
+    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", name):
         raise ValueError(f"Invalid SQL identifier: {name}")
-    
+
     # Check for reserved keywords (basic set)
     reserved_keywords = {
-        'select', 'insert', 'update', 'delete', 'drop', 'create', 'alter',
-        'table', 'index', 'view', 'trigger', 'database', 'schema',
-        'where', 'order', 'group', 'having', 'union', 'join'
+        "select",
+        "insert",
+        "update",
+        "delete",
+        "drop",
+        "create",
+        "alter",
+        "table",
+        "index",
+        "view",
+        "trigger",
+        "database",
+        "schema",
+        "where",
+        "order",
+        "group",
+        "having",
+        "union",
+        "join",
     }
-    
+
     if name.lower() in reserved_keywords:
         raise ValueError(f"SQL identifier cannot be a reserved keyword: {name}")
 
@@ -213,14 +229,14 @@ def create_table(cursor, table_name, columns, if_not_exists=True):
 
     # Validate table name
     validate_sql_identifier(table_name)
-    
+
     # Build column definitions
     column_defs = []
     for col in columns:
         # Validate column name and type
-        validate_sql_identifier(col['name'])
-        validate_sql_identifier(col['type'])
-        
+        validate_sql_identifier(col["name"])
+        validate_sql_identifier(col["type"])
+
         col_def = f"{col['name']} {col['type']}"
         if "constraints" in col and col["constraints"]:
             col_def += f" {col['constraints']}"
@@ -237,7 +253,7 @@ def drop_table(cursor, table_name, cascade=False):
     """Drop table"""
     # Validate table name
     validate_sql_identifier(table_name)
-    
+
     # SQLite doesn't support CASCADE, but we can check for it
     if cascade:
         # This is more for compatibility - SQLite handles FK constraints
