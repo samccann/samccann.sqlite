@@ -58,7 +58,7 @@ jobs:
           safety check --json --output safety-report.json || true
 
       - name: Upload security reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: security-reports
@@ -94,7 +94,7 @@ jobs:
           ansible-test sanity --docker -v --color
 
       - name: Upload sanity test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: sanity-results-py${{ matrix.python-version }}
@@ -151,7 +151,7 @@ jobs:
           name: codecov-umbrella
 
       - name: Upload unit test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: unit-results-py${{ matrix.python-version }}
@@ -188,7 +188,7 @@ jobs:
           ansible-test integration ${{ matrix.test-target }} --docker -v --color
 
       - name: Upload integration test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: integration-results-${{ matrix.test-target }}-py${{ matrix.python-version }}
@@ -219,7 +219,7 @@ jobs:
           ansible-playbook tests/performance/test_performance.yml -v
 
       - name: Upload performance results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: performance-results
@@ -325,7 +325,7 @@ jobs:
           ansible-galaxy collection install samccann-sqlite-*.tar.gz
 
       - name: Upload collection artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: collection-build
           path: samccann-sqlite-*.tar.gz
