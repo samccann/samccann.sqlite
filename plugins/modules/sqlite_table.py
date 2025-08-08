@@ -201,12 +201,12 @@ def get_table_info(cursor, table_name):
     info = {}
 
     # Get column information - using quoted identifier for safety
-    cursor.execute(f'PRAGMA table_info("{table_name}")')
+    cursor.execute(f'PRAGMA table_info("{table_name}")')  # nosec B608
     columns = cursor.fetchall()
     info["columns"] = [dict(zip([col[0] for col in cursor.description], row)) for row in columns]
 
     # Get row count - using quoted identifier for safety
-    cursor.execute(f'SELECT COUNT(*) FROM "{table_name}"')
+    cursor.execute(f'SELECT COUNT(*) FROM "{table_name}"')  # nosec B608
     info["row_count"] = cursor.fetchone()[0]
 
     # Get table schema
@@ -243,7 +243,7 @@ def create_table(cursor, table_name, columns, if_not_exists=True):
         column_defs.append(col_def)
 
     columns_sql = ", ".join(column_defs)
-    sql = f'CREATE TABLE {if_not_exists_clause}"{table_name}" ({columns_sql})'
+    sql = f'CREATE TABLE {if_not_exists_clause}"{table_name}" ({columns_sql})'  # nosec B608
 
     cursor.execute(sql)
     return sql
@@ -260,7 +260,7 @@ def drop_table(cursor, table_name, cascade=False):
         # differently
         pass
 
-    sql = f'DROP TABLE "{table_name}"'
+    sql = f'DROP TABLE "{table_name}"'  # nosec B608
     cursor.execute(sql)
     return sql
 

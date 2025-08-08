@@ -263,7 +263,7 @@ def is_compressed_file(file_path):
 
 def calculate_checksum(file_path):
     """Calculate MD5 checksum of file"""
-    hash_md5 = hashlib.md5()
+    hash_md5 = hashlib.md5(usedforsecurity=False)
     try:
         with open(file_path, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):

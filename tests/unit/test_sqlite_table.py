@@ -74,7 +74,7 @@ class TestSqliteTableFunctions:
         sql = create_table(mock_cursor, "users", columns)
 
         expected_sql = (
-            "CREATE TABLE IF NOT EXISTS users " + "(id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
+            "CREATE TABLE IF NOT EXISTS \"users\" " + "(id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
         )
         assert sql == expected_sql
         mock_cursor.execute.assert_called_once_with(expected_sql)
@@ -94,6 +94,6 @@ class TestSqliteTableFunctions:
 
         sql = drop_table(mock_cursor, "old_table")
 
-        expected_sql = "DROP TABLE old_table"
+        expected_sql = "DROP TABLE \"old_table\""
         assert sql == expected_sql
         mock_cursor.execute.assert_called_once_with(expected_sql)
