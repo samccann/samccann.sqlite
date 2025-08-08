@@ -1,5 +1,11 @@
 #  SQLite Collection
 
+[![Test Collection](https://github.com/samccann/ansible_collections_samccann_sqlite/actions/workflows/test.yml/badge.svg)](https://github.com/samccann/ansible_collections_samccann_sqlite/actions/workflows/test.yml)
+[![Security Scan](https://github.com/samccann/ansible_collections_samccann_sqlite/actions/workflows/security.yml/badge.svg)](https://github.com/samccann/ansible_collections_samccann_sqlite/actions/workflows/security.yml)
+[![Release Collection](https://github.com/samccann/ansible_collections_samccann_sqlite/actions/workflows/release.yml/badge.svg)](https://github.com/samccann/ansible_collections_samccann_sqlite/actions/workflows/release.yml)
+[![Ansible Galaxy](https://img.shields.io/ansible/collection/samccann.sqlite)](https://galaxy.ansible.com/samccann/sqlite)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 This repository contains the `samccann.sqlite` Ansible Collection for managing SQLite databases.
 
 ## Description
@@ -233,9 +239,25 @@ A complete role that demonstrates SQLite database management operations.
 4. **Transactions**: Use transactions for multi-statement operations
 5. **Error Handling**: Always handle database errors gracefully
 
+## Quality Assurance
+
+This collection maintains high quality standards through automated testing and security scanning:
+
+- **Comprehensive Testing**: Unit tests, integration tests, and performance tests across Python 3.11-3.13
+- **Security First**: Automated security scans with Bandit, Safety, and CodeQL
+- **Continuous Integration**: All changes are validated through GitHub Actions workflows
+- **Documentation**: Comprehensive troubleshooting guides and examples
+
 ## Contributing
 
 Please read [CONTRIBUTING](CONTRIBUTING) for details on our code of conduct and the process for submitting pull requests.
+
+### Development Workflow
+
+1. **Setup**: `make install` - Install development dependencies
+2. **Testing**: `make test` - Run full test suite
+3. **Linting**: `make lint` - Run code quality checks
+4. **Security**: `make security` - Run security scans
 
 This collection was created through assisted AI via Cursor and the claude-4-sonnet model.
 

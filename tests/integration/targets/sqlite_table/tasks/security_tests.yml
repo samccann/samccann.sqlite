@@ -1,0 +1,98 @@
+---
+# Security-focused tests for sqlite_table module
+- name: Setup test database for security tests
+  samccann.sqlite.sqlite_db:
+    path: "/tmp/security_table_test.db"
+    state: present
+
+- name: Test SQL injection prevention - invalid table name
+  samccann.sqlite.sqlite_table:
+    db: "/tmp/security_table_test.db"
+    name: "users; DROP TABLE important;"
+    state: present
+    columns:
+      - name: id
+        type: INTEGER
+        constraints: PRIMARY KEY
+  register: injection_result
+  failed_when: false
+
+- name: Verify SQL injection attempt is blocked
+  ansible.builtin.assert:
+    that:
+      - injection_result is failed
+      - "'Invalid SQL identifier' in injection_result.msg"
+
+- name: Test reserved keyword as table name
+  samccann.sqlite.sqlite_table:
+    db: "/tmp/security_table_test.db"
+    name: "select"
+    state: present
+    columns:
+      - name: id
+        type: INTEGER
+  register: keyword_result
+  failed_when: false
+
+- name: Verify reserved keyword is rejected
+  ansible.builtin.assert:
+    that:
+      - keyword_result is failed
+      - "'reserved keyword' in keyword_result.msg"
+
+- name: Test invalid column name
+  samccann.sqlite.sqlite_table:
+    db: "/tmp/security_table_test.db"
+    name: "test_table"
+    state: present
+    columns:
+      - name: "id'; DROP TABLE users; --"
+        type: INTEGER
+  register: column_injection_result
+  failed_when: false
+
+- name: Verify column injection is blocked
+  ansible.builtin.assert:
+    that:
+      - column_injection_result is failed
+      - "'Invalid SQL identifier' in column_injection_result.msg"
+
+- name: Test valid table creation after security tests
+  samccann.sqlite.sqlite_table:
+    db: "/tmp/security_table_test.db"
+    name: "secure_table"
+    state: present
+    columns:
+      - name: id
+        type: INTEGER
+        constraints: PRIMARY KEY AUTOINCREMENT
+      - name: name
+        type: TEXT
+        constraints: NOT NULL
+  register: valid_table_result
+
+- name: Verify valid table creation succeeds
+  ansible.builtin.assert:
+    that:
+      - valid_table_result is changed
+      - valid_table_result.exists
+
+- name: Test table information gathering
+  samccann.sqlite.sqlite_table:
+    db: "/tmp/security_table_test.db"
+    name: "secure_table"
+    state: present
+    gather_info: true
+  register: table_info_result
+
+- name: Verify table information is gathered
+  ansible.builtin.assert:
+    that:
+      - table_info_result.columns is defined
+      - table_info_result.row_count is defined
+      - table_info_result.schema is defined
+
+- name: Clean up security test database
+  ansible.builtin.file:
+    path: "/tmp/security_table_test.db"
+    state: absent

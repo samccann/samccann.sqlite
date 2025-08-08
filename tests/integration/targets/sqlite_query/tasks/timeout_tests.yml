@@ -1,0 +1,64 @@
+---
+# Timeout tests for sqlite_query module
+- name: Setup test database for timeout tests
+  samccann.sqlite.sqlite_db:
+    path: "/tmp/timeout_test.db"
+    state: present
+
+- name: Create test table for timeout tests
+  samccann.sqlite.sqlite_table:
+    db: "/tmp/timeout_test.db"
+    name: "timeout_test"
+    state: present
+    columns:
+      - name: id
+        type: INTEGER
+        constraints: PRIMARY KEY
+      - name: data
+        type: TEXT
+
+- name: Test query with reasonable timeout
+  samccann.sqlite.sqlite_query:
+    db: "/tmp/timeout_test.db"
+    query: "INSERT INTO timeout_test (data) VALUES (?)"
+    parameters:
+      - "test data"
+    timeout: 10
+  register: timeout_normal_result
+
+- name: Verify normal timeout query succeeds
+  ansible.builtin.assert:
+    that:
+      - timeout_normal_result is changed
+      - timeout_normal_result.rowcount == 1
+
+- name: Test query with very short timeout (should succeed for simple query)
+  samccann.sqlite.sqlite_query:
+    db: "/tmp/timeout_test.db"
+    query: "SELECT COUNT(*) FROM timeout_test"
+    timeout: 1
+  register: short_timeout_result
+
+- name: Verify short timeout query succeeds
+  ansible.builtin.assert:
+    that:
+      - short_timeout_result is not changed
+      - short_timeout_result.rows is defined
+
+- name: Test timeout disabled (0 value)
+  samccann.sqlite.sqlite_query:
+    db: "/tmp/timeout_test.db"
+    query: "SELECT * FROM timeout_test"
+    timeout: 0
+  register: no_timeout_result
+
+- name: Verify no timeout query succeeds
+  ansible.builtin.assert:
+    that:
+      - no_timeout_result is not changed
+      - no_timeout_result.rows is defined
+
+- name: Clean up timeout test database
+  ansible.builtin.file:
+    path: "/tmp/timeout_test.db"
+    state: absent

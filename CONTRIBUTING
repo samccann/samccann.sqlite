@@ -1,3 +1,89 @@
 # Contributing
 
-Refer to the [Ansible community guide](https://docs.ansible.com/ansible/devel/community/index.html).
+We welcome contributions to the SQLite Ansible Collection! This document outlines the process for contributing.
+
+## Getting Started
+
+1. **Fork the repository** on GitHub
+2. **Clone your fork** locally
+3. **Set up development environment**:
+   ```bash
+   make install  # Install development dependencies
+   ```
+
+## Development Workflow
+
+### Code Quality Standards
+- Follow PEP 8 Python style guidelines
+- Use type hints where appropriate
+- Write comprehensive docstrings
+- Add unit and integration tests for new functionality
+
+### Development Commands
+```bash
+make test            # Run full test suite
+make lint            # Run code quality checks
+make security        # Run security scans
+make format          # Format code automatically
+```
+
+### Testing Requirements
+- **Unit tests**: Required for all new modules and functions
+- **Integration tests**: Required for new functionality
+- **Security tests**: Required for any input validation changes
+- **Performance tests**: Required for operations affecting large datasets
+
+## Submission Process
+
+### Pull Request Guidelines
+1. **Create a feature branch** from `main`
+2. **Make your changes** following coding standards
+3. **Add tests** for new functionality
+4. **Update documentation** as needed
+5. **Run the full test suite** locally
+6. **Submit a pull request** with:
+   - Clear description of changes
+   - Reference to any related issues
+   - Test evidence showing functionality works
+
+### CI/CD Pipeline
+All contributions are automatically validated through our comprehensive CI/CD pipeline:
+
+- **Automated Testing**: Unit, integration, and security tests
+- **Code Quality**: Linting, formatting, and style checks
+- **Security Scanning**: Multi-tool security analysis
+- **Performance Validation**: Large-scale operation testing
+
+See [CI_CD_IMPLEMENTATION.md](CI_CD_IMPLEMENTATION.md) for detailed information about our automated testing and deployment pipeline.
+
+### Review Process
+1. **Automated checks** must pass (CI/CD pipeline)
+2. **Code review** by maintainers
+3. **Testing validation** in integration environment
+4. **Merge** when approved and all checks pass
+
+## Security Guidelines
+
+- **Never commit secrets** or sensitive information
+- **Use parameterized queries** to prevent SQL injection
+- **Validate all user inputs** using provided validation functions
+- **Follow security best practices** outlined in SECURITY.md
+
+## Documentation
+
+- Update module documentation for any API changes
+- Add examples for new functionality
+- Update TROUBLESHOOTING.md for new common issues
+- Keep CHANGELOG fragments current
+
+## Community Standards
+
+Refer to the [Ansible community guide](https://docs.ansible.com/ansible/devel/community/index.html) for general Ansible contribution guidelines.
+
+## Questions?
+
+- **GitHub Issues**: For bug reports and feature requests
+- **GitHub Discussions**: For questions and community discussion
+- **Security Issues**: Report privately via email (see SECURITY.md)
+
+Thank you for contributing to the SQLite Ansible Collection!

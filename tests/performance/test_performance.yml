@@ -1,0 +1,107 @@
+---
+# Performance tests for SQLite collection
+- name: Performance Test Suite
+  hosts: localhost
+  gather_facts: false
+  vars:
+    test_db_path: /tmp/performance_test.db
+    large_data_size: 1000
+
+  tasks:
+    - name: Clean up any existing test database
+      ansible.builtin.file:
+        path: "{{ test_db_path }}"
+        state: absent
+
+    - name: Create test database with performance settings
+      samccann.sqlite.sqlite_db:
+        path: "{{ test_db_path }}"
+        state: present
+        performance:
+          journal_mode: WAL
+          synchronous: 1
+          cache_size: -16384
+          temp_store: 2
+        foreign_keys: true
+      register: db_creation_time
+
+    - name: Create test table for performance testing
+      samccann.sqlite.sqlite_table:
+        db: "{{ test_db_path }}"
+        name: performance_test
+        state: present
+        columns:
+          - name: id
+            type: INTEGER
+            constraints: PRIMARY KEY AUTOINCREMENT
+          - name: data
+            type: TEXT
+          - name: number
+            type: INTEGER
+          - name: created_at
+            type: TIMESTAMP
+            constraints: DEFAULT CURRENT_TIMESTAMP
+
+    - name: Measure bulk insert performance
+      samccann.sqlite.sqlite_query:
+        db: "{{ test_db_path }}"
+        query: "INSERT INTO performance_test (data, number) VALUES (?, ?)"
+        parameters:
+          - "test_data_{{ item }}"
+          - "{{ item }}"
+        timeout: 60
+      loop: "{{ range(1, large_data_size + 1) | list }}"
+      register: bulk_insert_results
+
+    - name: Measure query performance
+      samccann.sqlite.sqlite_query:
+        db: "{{ test_db_path }}"
+        query: "SELECT COUNT(*) FROM performance_test WHERE number > ?"
+        parameters:
+          - 500
+        fetch: one
+        timeout: 30
+      register: query_performance
+
+    - name: Verify query result
+      ansible.builtin.assert:
+        that:
+          - query_performance.rows[0][0] == (large_data_size - 500)
+
+    - name: Test database maintenance performance
+      samccann.sqlite.sqlite_db:
+        path: "{{ test_db_path }}"
+        state: present
+        maintenance:
+          vacuum: true
+          analyze: true
+          integrity_check: true
+      register: maintenance_performance
+
+    - name: Test backup performance
+      samccann.sqlite.sqlite_backup:
+        src: "{{ test_db_path }}"
+        dest: "/tmp/performance_backup.db"
+        operation: backup
+        incremental: true
+        checksum: true
+        verify_backup: true
+      register: backup_performance
+
+    - name: Display performance results
+      ansible.builtin.debug:
+        msg:
+          - "Database creation completed"
+          - "Bulk insert of {{ large_data_size }} records completed"
+          - "Query performance test completed"
+          - "Maintenance operations completed: {{ maintenance_performance.maintenance_results }}"
+          - "Backup time: {{ backup_performance.backup_time }} seconds"
+          - "Backup size: {{ backup_performance.dest_size }} bytes"
+
+    - name: Clean up performance test files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ test_db_path }}"
+        - "/tmp/performance_backup.db"

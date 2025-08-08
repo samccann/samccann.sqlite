@@ -1,4 +1,13 @@
-# TO-DO: add python packages that are required for testing this collection
+# Python packages required for testing this collection
 pytest-ansible
 pytest-xdist
 molecule
+# Security testing
+bandit
+safety
+# Code quality
+black
+flake8
+isort
+# Changelog management
+antsibull-changelog

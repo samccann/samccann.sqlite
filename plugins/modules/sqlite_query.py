@@ -58,6 +58,12 @@ options:
             - Whether to execute in a transaction
         type: bool
         default: true
+    timeout:
+        description:
+            - Query timeout in seconds
+            - Set to 0 for no timeout (use with caution)
+        type: int
+        default: 30
 requirements:
     - python >= 3.6
     - sqlite3 (built-in Python module)
@@ -139,8 +145,46 @@ changed:
 
 import os
 import sqlite3
+import threading
 
 from ansible.module_utils.basic import AnsibleModule
+
+
+class QueryTimeout(Exception):
+    """Exception raised when query times out"""
+
+    pass
+
+
+def execute_query_with_timeout(cursor, query, parameters, timeout):
+    """Execute query with timeout using threading"""
+    result = {"success": False, "error": None}
+
+    def target():
+        try:
+            if parameters:
+                cursor.execute(query, parameters)
+            else:
+                cursor.execute(query)
+            result["success"] = True
+        except Exception as e:
+            result["error"] = e
+
+    thread = threading.Thread(target=target)
+    thread.daemon = True
+    thread.start()
+    thread.join(timeout if timeout > 0 else None)
+
+    if thread.is_alive():
+        # Query is still running, timeout occurred
+        raise QueryTimeout(f"Query timed out after {timeout} seconds")
+
+    # Check if an error occurred during execution
+    error = result.get("error")
+    if error is not None:
+        raise error
+
+    return result["success"]
 
 
 def execute_query(
@@ -149,6 +193,7 @@ def execute_query(
     parameters=None,
     fetch="all",
     transaction=True,
+    timeout=30,
 ):  # pylint: disable=too-many-branches,too-many-statements
     """Execute SQL query on SQLite database"""
     if not os.path.exists(db_path):
@@ -168,11 +213,8 @@ def execute_query(
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # Execute query
-        if parameters:
-            cursor.execute(query, parameters)
-        else:
-            cursor.execute(query)
+        # Execute query with timeout
+        execute_query_with_timeout(cursor, query, parameters, timeout)
 
         results["rowcount"] = cursor.rowcount
 
@@ -237,6 +279,7 @@ def main():
             "parameters": {"type": "list", "elements": "raw"},
             "fetch": {"default": "all", "choices": ["all", "one", "none"]},
             "transaction": {"type": "bool", "default": True},
+            "timeout": {"type": "int", "default": 30},
         },
         supports_check_mode=False,  # SQL queries can't be safely checked
     )
@@ -246,13 +289,14 @@ def main():
     parameters = module.params["parameters"]
     fetch = module.params["fetch"]
     transaction = module.params["transaction"]
+    timeout = module.params["timeout"]
 
     try:
-        result = execute_query(db_path, query, parameters, fetch, transaction)
+        result = execute_query(db_path, query, parameters, fetch, transaction, timeout)
         result["query"] = query
         result.setdefault("changed", False)
         module.exit_json(**result)
-    except sqlite3.Error as error:
+    except (sqlite3.Error, QueryTimeout) as error:
         module.fail_json(msg=str(error))
 
 

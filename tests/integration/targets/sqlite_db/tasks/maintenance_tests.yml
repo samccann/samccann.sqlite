@@ -1,0 +1,114 @@
+---
+# Database maintenance operation tests
+- name: Setup test database for maintenance tests
+  samccann.sqlite.sqlite_db:
+    path: "/tmp/maintenance_test.db"
+    state: present
+
+- name: Create test table with data
+  samccann.sqlite.sqlite_query:
+    db: "/tmp/maintenance_test.db"
+    query: |
+      CREATE TABLE maintenance_test (
+        id INTEGER PRIMARY KEY,
+        data TEXT
+      );
+      INSERT INTO maintenance_test (data) VALUES ('test1');
+      INSERT INTO maintenance_test (data) VALUES ('test2');
+      DELETE FROM maintenance_test WHERE id = 1;
+
+- name: Test VACUUM operation
+  samccann.sqlite.sqlite_db:
+    path: "/tmp/maintenance_test.db"
+    state: present
+    maintenance:
+      vacuum: true
+  register: vacuum_result
+
+- name: Verify VACUUM operation
+  ansible.builtin.assert:
+    that:
+      - vacuum_result.maintenance_results is defined
+      - vacuum_result.maintenance_results.vacuum
+
+- name: Test ANALYZE operation
+  samccann.sqlite.sqlite_db:
+    path: "/tmp/maintenance_test.db"
+    state: present
+    maintenance:
+      analyze: true
+  register: analyze_result
+
+- name: Verify ANALYZE operation
+  ansible.builtin.assert:
+    that:
+      - analyze_result.maintenance_results is defined
+      - analyze_result.maintenance_results.analyze
+
+- name: Test integrity check
+  samccann.sqlite.sqlite_db:
+    path: "/tmp/maintenance_test.db"
+    state: present
+    maintenance:
+      integrity_check: true
+  register: integrity_result
+
+- name: Verify integrity check
+  ansible.builtin.assert:
+    that:
+      - integrity_result.maintenance_results is defined
+      - integrity_result.maintenance_results.integrity_check == "ok"
+
+- name: Test combined maintenance operations
+  samccann.sqlite.sqlite_db:
+    path: "/tmp/maintenance_test.db"
+    state: present
+    maintenance:
+      vacuum: true
+      analyze: true
+      integrity_check: true
+  register: combined_maintenance_result
+
+- name: Verify combined maintenance operations
+  ansible.builtin.assert:
+    that:
+      - combined_maintenance_result.maintenance_results.vacuum
+      - combined_maintenance_result.maintenance_results.analyze
+      - combined_maintenance_result.maintenance_results.integrity_check == "ok"
+
+- name: Test performance optimizations
+  samccann.sqlite.sqlite_db:
+    path: "/tmp/maintenance_test.db"
+    state: present
+    performance:
+      journal_mode: WAL
+      synchronous: 1
+      cache_size: -8192
+      temp_store: 2
+  register: performance_result
+
+- name: Verify performance optimizations
+  ansible.builtin.assert:
+    that:
+      - performance_result.performance_results is defined
+      - performance_result.performance_results.journal_mode == "wal"
+      - performance_result.performance_results.synchronous == 1
+      - performance_result.performance_results.cache_size == -8192
+      - performance_result.performance_results.temp_store == 2
+
+- name: Test foreign keys configuration
+  samccann.sqlite.sqlite_db:
+    path: "/tmp/maintenance_test.db"
+    state: present
+    foreign_keys: true
+  register: foreign_keys_result
+
+- name: Verify foreign keys configuration
+  ansible.builtin.assert:
+    that:
+      - foreign_keys_result.foreign_keys_enabled
+
+- name: Clean up maintenance test database
+  ansible.builtin.file:
+    path: "/tmp/maintenance_test.db"
+    state: absent

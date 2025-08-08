@@ -1,0 +1,111 @@
+---
+# Enhanced backup feature tests
+- name: Setup test database for enhanced backup tests
+  samccann.sqlite.sqlite_db:
+    path: "/tmp/enhanced_backup_test.db"
+    state: present
+
+- name: Create test table with data
+  samccann.sqlite.sqlite_query:
+    db: "/tmp/enhanced_backup_test.db"
+    query: |
+      CREATE TABLE test_data (
+        id INTEGER PRIMARY KEY,
+        name TEXT,
+        value INTEGER
+      );
+      INSERT INTO test_data (name, value) VALUES ('test1', 100);
+      INSERT INTO test_data (name, value) VALUES ('test2', 200);
+
+- name: Test incremental backup
+  samccann.sqlite.sqlite_backup:
+    src: "/tmp/enhanced_backup_test.db"
+    dest: "/tmp/incremental_backup.db"
+    operation: backup
+    incremental: true
+    checksum: true
+  register: incremental_result
+
+- name: Verify incremental backup
+  ansible.builtin.assert:
+    that:
+      - incremental_result is changed
+      - incremental_result.checksum is defined
+      - incremental_result.backup_time is defined
+
+- name: Test backup with rotation
+  samccann.sqlite.sqlite_backup:
+    src: "/tmp/enhanced_backup_test.db"
+    dest: "/tmp/rotation_backup_1.db"
+    operation: backup
+    rotation:
+      keep_count: 2
+      pattern: "/tmp/rotation_backup_*.db"
+  register: rotation_result1
+
+- name: Create second backup for rotation test
+  samccann.sqlite.sqlite_backup:
+    src: "/tmp/enhanced_backup_test.db"
+    dest: "/tmp/rotation_backup_2.db"
+    operation: backup
+    rotation:
+      keep_count: 2
+      pattern: "/tmp/rotation_backup_*.db"
+
+- name: Create third backup to trigger rotation
+  samccann.sqlite.sqlite_backup:
+    src: "/tmp/enhanced_backup_test.db"
+    dest: "/tmp/rotation_backup_3.db"
+    operation: backup
+    rotation:
+      keep_count: 2
+      pattern: "/tmp/rotation_backup_*.db"
+  register: rotation_result3
+
+- name: Verify rotation occurred
+  ansible.builtin.assert:
+    that:
+      - rotation_result3.rotated_files is defined
+      - rotation_result3.rotated_files | length > 0
+
+- name: Test compressed incremental backup
+  samccann.sqlite.sqlite_backup:
+    src: "/tmp/enhanced_backup_test.db"
+    dest: "/tmp/compressed_incremental.db.gz"
+    operation: backup
+    incremental: true
+    compress: true
+    checksum: true
+  register: compressed_incremental_result
+
+- name: Verify compressed incremental backup
+  ansible.builtin.assert:
+    that:
+      - compressed_incremental_result is changed
+      - compressed_incremental_result.compressed
+      - compressed_incremental_result.checksum is defined
+
+- name: Test backup verification with checksum
+  samccann.sqlite.sqlite_backup:
+    src: "/tmp/incremental_backup.db"
+    dest: "/dev/null"
+    operation: verify
+  register: verify_result
+
+- name: Verify backup verification
+  ansible.builtin.assert:
+    that:
+      - verify_result.verified is defined
+
+- name: Clean up enhanced backup test files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/enhanced_backup_test.db"
+    - "/tmp/incremental_backup.db"
+    - "/tmp/compressed_incremental.db.gz"
+    - "/tmp/rotation_backup_1.db"
+    - "/tmp/rotation_backup_2.db"
+    - "/tmp/rotation_backup_3.db"
+  failed_when: false

@@ -100,8 +100,7 @@
   samccann.sqlite.sqlite_query:
     db: "{{ test_db_path }}"
     query: "SELECT username, email FROM users"
-    fetch: many
-    fetch_size: 1
+    fetch: all
   register: select_many_result
 
 - name: Verify SELECT many result
@@ -226,6 +225,9 @@
   ansible.builtin.assert:
     that:
       - transaction_result is changed
+
+- name: Run timeout tests
+  ansible.builtin.include_tasks: timeout_tests.yml
 
 - name: Clean up test database
   ansible.builtin.file:
