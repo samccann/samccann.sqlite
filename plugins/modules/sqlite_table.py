@@ -184,13 +184,13 @@ def get_table_info(cursor, table_name):
     """Get detailed table information"""
     info = {}
 
-    # Get column information
-    cursor.execute(f"PRAGMA table_info({table_name})")
+    # Get column information - using quoted identifier for safety
+    cursor.execute(f'PRAGMA table_info("{table_name}")')
     columns = cursor.fetchall()
     info["columns"] = [dict(zip([col[0] for col in cursor.description], row)) for row in columns]
 
-    # Get row count
-    cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+    # Get row count - using quoted identifier for safety
+    cursor.execute(f'SELECT COUNT(*) FROM "{table_name}"')
     info["row_count"] = cursor.fetchone()[0]
 
     # Get table schema
@@ -227,7 +227,7 @@ def create_table(cursor, table_name, columns, if_not_exists=True):
         column_defs.append(col_def)
 
     columns_sql = ", ".join(column_defs)
-    sql = f"CREATE TABLE {if_not_exists_clause}{table_name} ({columns_sql})"
+    sql = f'CREATE TABLE {if_not_exists_clause}"{table_name}" ({columns_sql})'
 
     cursor.execute(sql)
     return sql
@@ -244,7 +244,7 @@ def drop_table(cursor, table_name, cascade=False):
         # differently
         pass
 
-    sql = f"DROP TABLE {table_name}"
+    sql = f'DROP TABLE "{table_name}"'
     cursor.execute(sql)
     return sql
 

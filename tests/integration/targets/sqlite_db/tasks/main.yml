@@ -120,6 +120,9 @@
 - name: Run security tests
   ansible.builtin.include_tasks: security_tests.yml
 
+- name: Run maintenance tests
+  ansible.builtin.include_tasks: maintenance_tests.yml
+
 - name: Clean up test databases
   ansible.builtin.file:
     path: "{{ item }}"

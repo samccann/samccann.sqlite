@@ -1,0 +1,58 @@
+---
+ancestor: null
+releases:
+  0.0.1:
+    release_date: '2024-01-01'
+    changes:
+      release_summary: |
+        Initial release of the SQLite Ansible Collection providing comprehensive SQLite database management capabilities.
+      new_modules:
+        - name: sqlite_db
+          description: Manage SQLite database files with permissions and ownership
+        - name: sqlite_table
+          description: Create, drop, and inspect SQLite database tables  
+        - name: sqlite_query
+          description: Execute SQL queries with parameterized query support
+        - name: sqlite_backup
+          description: Backup, restore, and verify SQLite databases
+      new_roles:
+        - name: run
+          description: Complete demonstration role showing collection capabilities
+  0.0.2:
+    release_date: '2025-01-08'
+    changes:
+      release_summary: |
+        Major security, performance, and functionality enhancements for the SQLite collection.
+        This release includes critical security fixes, new maintenance operations, performance optimizations,
+        enhanced backup features, and comprehensive test coverage improvements.
+      security_fixes:
+        - Fixed SQL injection vulnerabilities in sqlite_table module by implementing proper identifier quoting
+        - Added comprehensive input validation for SQL identifiers to prevent injection attacks
+        - Implemented path traversal protection in database file operations
+        - Added standardized error handling with security context information
+      major_changes:
+        - Added database maintenance operations (VACUUM, ANALYZE, integrity check) to sqlite_db module
+        - Implemented performance optimization settings with configurable PRAGMA options
+        - Added foreign key constraint enforcement with automatic configuration
+        - Enhanced backup module with incremental backup support using SQLite's backup API
+        - Added backup rotation functionality with configurable retention policies
+        - Implemented MD5 checksum generation and verification for backup integrity
+        - Added query timeout protection to prevent hanging operations
+        - Created comprehensive troubleshooting documentation
+      minor_changes:
+        - Added standardized error handling across all modules with consistent message formatting
+        - Implemented retry logic for transient database errors
+        - Enhanced test coverage with security, performance, and timeout test suites
+        - Added performance test suite for large-scale database operations
+        - Improved module documentation with additional examples and use cases
+        - Added development convenience files (.editorconfig, .gitattributes, Makefile)
+      bugfixes:
+        - Fixed potential SQL injection in table information gathering functions
+        - Improved error handling for database connection failures
+        - Enhanced backup verification process with better error reporting
+        - Fixed file permission handling edge cases in database creation
+      doc_changes:
+        - Added comprehensive TROUBLESHOOTING.md with common issues and solutions
+        - Enhanced SECURITY.md with collection-specific security guidelines
+        - Improved module documentation with security best practices
+        - Added performance optimization guidance and examples

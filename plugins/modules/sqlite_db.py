@@ -57,6 +57,52 @@ options:
             - Create a backup before making changes
         type: bool
         default: false
+    maintenance:
+        description:
+            - Perform database maintenance operations
+        type: dict
+        suboptions:
+            vacuum:
+                description: Run VACUUM to reclaim space
+                type: bool
+                default: false
+            analyze:
+                description: Run ANALYZE to update query optimizer statistics
+                type: bool
+                default: false
+            integrity_check:
+                description: Run integrity check
+                type: bool
+                default: false
+    performance:
+        description:
+            - Performance optimization settings
+        type: dict
+        suboptions:
+            journal_mode:
+                description: Set journal mode (DELETE, TRUNCATE, PERSIST, MEMORY, WAL, OFF)
+                type: str
+                choices: ['DELETE', 'TRUNCATE', 'PERSIST', 'MEMORY', 'WAL', 'OFF']
+                default: WAL
+            synchronous:
+                description: Set synchronous mode (0=OFF, 1=NORMAL, 2=FULL, 3=EXTRA)
+                type: int
+                choices: [0, 1, 2, 3]
+                default: 1
+            cache_size:
+                description: Set cache size (negative for KB, positive for pages)
+                type: int
+                default: -8192
+            temp_store:
+                description: Set temp store mode (0=DEFAULT, 1=FILE, 2=MEMORY)
+                type: int
+                choices: [0, 1, 2]
+                default: 2
+    foreign_keys:
+        description:
+            - Enable foreign key constraint enforcement
+        type: bool
+        default: true
 requirements:
     - python >= 3.6
     - sqlite3 (built-in Python module)
@@ -84,6 +130,26 @@ EXAMPLES = """
     path: /tmp/production.db
     state: present
     backup: true
+
+- name: Perform database maintenance
+  samccann.sqlite.sqlite_db:
+    path: /tmp/production.db
+    state: present
+    maintenance:
+      vacuum: true
+      analyze: true
+      integrity_check: true
+
+- name: Create high-performance database
+  samccann.sqlite.sqlite_db:
+    path: /tmp/fast.db
+    state: present
+    performance:
+      journal_mode: WAL
+      synchronous: 1
+      cache_size: -16384
+      temp_store: 2
+    foreign_keys: true
 """
 
 RETURN = """
@@ -107,6 +173,21 @@ backup_file:
     returned: when backup=true and file existed
     type: str
     sample: /tmp/example.db.backup.20240101_120000
+maintenance_results:
+    description: Results of maintenance operations
+    returned: when maintenance operations are performed
+    type: dict
+    sample: {"vacuum": true, "analyze": true, "integrity_check": "ok"}
+performance_results:
+    description: Results of performance optimization settings
+    returned: when performance settings are applied
+    type: dict
+    sample: {"journal_mode": "wal", "synchronous": 1, "cache_size": -8192}
+foreign_keys_enabled:
+    description: Whether foreign key constraints are enabled
+    returned: when foreign_keys parameter is used
+    type: bool
+    sample: true
 """
 
 import grp
@@ -173,6 +254,102 @@ def create_backup(path):
         return None
 
 
+def perform_maintenance(path, maintenance_options):
+    """Perform database maintenance operations"""
+    results = {}
+    
+    try:
+        conn = sqlite3.connect(path)
+        cursor = conn.cursor()
+        
+        if maintenance_options.get("integrity_check", False):
+            cursor.execute("PRAGMA integrity_check")
+            result = cursor.fetchone()
+            results["integrity_check"] = result[0] if result else "failed"
+        
+        if maintenance_options.get("vacuum", False):
+            cursor.execute("VACUUM")
+            results["vacuum"] = True
+            
+        if maintenance_options.get("analyze", False):
+            cursor.execute("ANALYZE")
+            results["analyze"] = True
+            
+        conn.commit()
+        conn.close()
+        
+    except sqlite3.Error as error:
+        results["error"] = str(error)
+        return results
+    
+    return results
+
+
+def apply_performance_settings(path, performance_options):
+    """Apply performance optimization settings"""
+    results = {}
+    
+    try:
+        conn = sqlite3.connect(path)
+        cursor = conn.cursor()
+        
+        # Set journal mode
+        if "journal_mode" in performance_options:
+            journal_mode = performance_options["journal_mode"]
+            cursor.execute(f"PRAGMA journal_mode = {journal_mode}")
+            result = cursor.fetchone()
+            results["journal_mode"] = result[0] if result else journal_mode.lower()
+        
+        # Set synchronous mode
+        if "synchronous" in performance_options:
+            synchronous = performance_options["synchronous"]
+            cursor.execute(f"PRAGMA synchronous = {synchronous}")
+            results["synchronous"] = synchronous
+            
+        # Set cache size
+        if "cache_size" in performance_options:
+            cache_size = performance_options["cache_size"]
+            cursor.execute(f"PRAGMA cache_size = {cache_size}")
+            results["cache_size"] = cache_size
+            
+        # Set temp store
+        if "temp_store" in performance_options:
+            temp_store = performance_options["temp_store"]
+            cursor.execute(f"PRAGMA temp_store = {temp_store}")
+            results["temp_store"] = temp_store
+            
+        conn.close()
+        
+    except sqlite3.Error as error:
+        results["error"] = str(error)
+        return results
+    
+    return results
+
+
+def configure_foreign_keys(path, enable_foreign_keys):
+    """Configure foreign key constraint enforcement"""
+    try:
+        conn = sqlite3.connect(path)
+        cursor = conn.cursor()
+        
+        if enable_foreign_keys:
+            cursor.execute("PRAGMA foreign_keys = ON")
+        else:
+            cursor.execute("PRAGMA foreign_keys = OFF")
+            
+        # Verify the setting
+        cursor.execute("PRAGMA foreign_keys")
+        result = cursor.fetchone()
+        enabled = bool(result[0]) if result else False
+        
+        conn.close()
+        return enabled
+        
+    except sqlite3.Error as error:
+        raise sqlite3.Error(f"Failed to configure foreign keys: {str(error)}")
+
+
 def main():  # pylint: disable=too-many-branches
     """Main function for the module"""
     module = AnsibleModule(
@@ -183,6 +360,9 @@ def main():  # pylint: disable=too-many-branches
             "owner": {"type": "str"},
             "group": {"type": "str"},
             "backup": {"type": "bool", "default": False},
+            "maintenance": {"type": "dict", "default": {}},
+            "performance": {"type": "dict", "default": {}},
+            "foreign_keys": {"type": "bool", "default": True},
         },
         supports_check_mode=True,
     )
@@ -193,6 +373,9 @@ def main():  # pylint: disable=too-many-branches
     owner = module.params["owner"]
     group = module.params["group"]
     backup = module.params["backup"]
+    maintenance = module.params["maintenance"]
+    performance = module.params["performance"]
+    foreign_keys = module.params["foreign_keys"]
 
     # Validate database path for security
     try:
@@ -247,6 +430,34 @@ def main():  # pylint: disable=too-many-branches
                 except (KeyError, OSError) as error:
                     module.fail_json(
                         msg=f"Failed to set ownership: {str(error)}",
+                    )
+
+            # Perform maintenance operations if requested
+            if maintenance and not module.check_mode:
+                maintenance_results = perform_maintenance(path, maintenance)
+                if "error" in maintenance_results:
+                    module.fail_json(
+                        msg=f"Maintenance operation failed: {maintenance_results['error']}",
+                    )
+                result["maintenance_results"] = maintenance_results
+
+            # Apply performance settings if requested
+            if performance and not module.check_mode:
+                performance_results = apply_performance_settings(path, performance)
+                if "error" in performance_results:
+                    module.fail_json(
+                        msg=f"Performance optimization failed: {performance_results['error']}",
+                    )
+                result["performance_results"] = performance_results
+
+            # Configure foreign keys if specified
+            if not module.check_mode:
+                try:
+                    enabled = configure_foreign_keys(path, foreign_keys)
+                    result["foreign_keys_enabled"] = enabled
+                except sqlite3.Error as error:
+                    module.fail_json(
+                        msg=f"Failed to configure foreign keys: {str(error)}",
                     )
 
     elif state == "absent":

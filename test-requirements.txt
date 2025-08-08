@@ -9,3 +9,5 @@ safety
 black
 flake8
 isort
+# Changelog management
+antsibull-changelog

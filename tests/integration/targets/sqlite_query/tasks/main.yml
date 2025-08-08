@@ -227,6 +227,9 @@
     that:
       - transaction_result is changed
 
+- name: Run timeout tests
+  ansible.builtin.include_tasks: timeout_tests.yml
+
 - name: Clean up test database
   ansible.builtin.file:
     path: "{{ test_db_path }}"

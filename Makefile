@@ -49,3 +49,10 @@ ci-test:  ## Run tests as in CI
 
 integration-test:  ## Run integration tests
 	tox -e ansible-test-integration
+
+changelog:  ## Generate changelog
+	antsibull-changelog generate
+
+release:  ## Prepare release (build + changelog)
+	$(MAKE) changelog
+	$(MAKE) build

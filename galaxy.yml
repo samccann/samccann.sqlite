@@ -5,10 +5,10 @@
 
 namespace: "samccann"
 name: "sqlite"
-version: 1.0.0
+version: 0.0.2
 readme: README.md
 authors:
-  - SQLite Collection Maintainer <maintainer@example.com>
+  - Sandra McCann <samccann@redhat.com>
 
 description: Ansible collection for managing SQLite databases, tables, queries, and backup operations
 license_file: LICENSE
