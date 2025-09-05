@@ -1,8 +1,7 @@
 # Contributing
 
-Welcome to the samccann.sqlite collection! 
+Welcome to the samccann.sqlite collection!
 
 Please open issues at https://github.com/ansible-collections/samccann.sqlite/issues/new/choose
 
 PRs also welcome. Test your changes using tox before opening a PR.
-

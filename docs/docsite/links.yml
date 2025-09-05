@@ -7,7 +7,6 @@ edit_on_github:
 extra_links:
   - description: Report an issue
     url: https://github.com/ansible-collections/samccann.sqlite/issues/new/choose
-
 # No communication channels specified for now
 # communication:
 #   forum:
