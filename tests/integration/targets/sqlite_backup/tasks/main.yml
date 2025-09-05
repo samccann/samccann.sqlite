@@ -262,8 +262,8 @@
   ansible.builtin.assert:
     that:
       - verify_corrupted.msg is defined
-      - verify_corrupted.failed | default(false)
-    fail_msg: "Should fail when verifying corrupted backup"
+      - verify_corrupted.failed_when_suppressed_exception is defined
+    fail_msg: "Should detect corrupted backup and fail internally"
 
 - name: Test restore from compressed backup
   samccann.sqlite.sqlite_backup:
@@ -277,7 +277,7 @@
   ansible.builtin.assert:
     that:
       - restore_compressed is changed
-      - restore_compressed.compress == true
+      - restore_compressed.compressed == true
 
 - name: Clean up all test files
   ansible.builtin.file:
