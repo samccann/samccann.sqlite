@@ -41,9 +41,15 @@ class TestSqliteBackupFunctions:
         with patch("os.path.getsize", side_effect=OSError):
             assert get_file_size("/missing/file.db") == 0
 
+    @patch("builtins.open")
     @patch("sqlite3.connect")
-    def test_verify_sqlite_db_valid(self, mock_connect):
+    def test_verify_sqlite_db_valid(self, mock_connect, mock_open):
         """Test verify_sqlite_db with valid database."""
+        # Mock file reading for SQLite header check
+        mock_file = MagicMock()
+        mock_file.read.return_value = b"SQLite format 3\x00"
+        mock_open.return_value.__enter__.return_value = mock_file
+
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = ["ok"]
@@ -54,9 +60,15 @@ class TestSqliteBackupFunctions:
         mock_cursor.execute.assert_called_once_with("PRAGMA integrity_check")
         mock_conn.close.assert_called_once()
 
+    @patch("builtins.open")
     @patch("sqlite3.connect")
-    def test_verify_sqlite_db_invalid(self, mock_connect):
+    def test_verify_sqlite_db_invalid(self, mock_connect, mock_open):
         """Test verify_sqlite_db with invalid database."""
+        # Mock file reading for SQLite header check
+        mock_file = MagicMock()
+        mock_file.read.return_value = b"SQLite format 3\x00"
+        mock_open.return_value.__enter__.return_value = mock_file
+
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = ["error"]
@@ -65,10 +77,26 @@ class TestSqliteBackupFunctions:
 
         assert verify_sqlite_db("/test/db.sqlite") is False
 
+    @patch("builtins.open")
     @patch("sqlite3.connect")
-    def test_verify_sqlite_db_exception(self, mock_connect):
+    def test_verify_sqlite_db_exception(self, mock_connect, mock_open):
         """Test verify_sqlite_db with database exception."""
+        # Mock file reading for SQLite header check
+        mock_file = MagicMock()
+        mock_file.read.return_value = b"SQLite format 3\x00"
+        mock_open.return_value.__enter__.return_value = mock_file
+
         mock_connect.side_effect = sqlite3.Error("Database error")
+        assert verify_sqlite_db("/test/db.sqlite") is False
+
+    @patch("builtins.open")
+    def test_verify_sqlite_db_invalid_header(self, mock_open):
+        """Test verify_sqlite_db with invalid SQLite header."""
+        # Mock file reading for invalid header
+        mock_file = MagicMock()
+        mock_file.read.return_value = b"This is not a SQLite file"
+        mock_open.return_value.__enter__.return_value = mock_file
+
         assert verify_sqlite_db("/test/db.sqlite") is False
 
     def test_is_compressed_file_true(self):
