@@ -1,10 +1,10 @@
-#  SQLite Collection
+# SQLite Collection
 
 This repository contains the `samccann.sqlite` Ansible Collection for managing SQLite databases.
 
 ## Description
 
-The SQLite Collection provides comprehensive modules and roles for managing SQLite databases, including:
+The SQLite Collection provides comprehensive modules for managing SQLite databases, including:
 
 - **Database Management**: Create, delete, and configure SQLite databases
 - **Table Operations**: Create, drop, and inspect database tables
@@ -14,7 +14,7 @@ The SQLite Collection provides comprehensive modules and roles for managing SQLi
 
 ## Requirements
 
-- Ansible >= 2.9
+- Ansible >= 2.17
 - Python >= 3.6
 - sqlite3 (built-in Python module)
 
@@ -108,37 +108,11 @@ Backup and restore databases.
     dest: /var/lib/app/restored.db
     operation: restore
     overwrite: true
-```
 
-## Roles
-
-### samccann.sqlite.run
-
-A complete role that demonstrates SQLite database management operations.
-
-**Variables:**
-
-- `run_sqlite_db_path`: Path to the SQLite database (default: `/tmp/example.db`)
-- `run_sqlite_db_permissions`: Database file permissions (default: `'0640'`)
-- `run_sqlite_backup_path`: Backup file path (default: `/tmp/example_backup.db`)
-- `run_create_backup`: Whether to create backups (default: `false`)
-- `run_sample_users`: List of sample users to insert
-- `run_verify_integrity`: Verify database integrity (default: `true`)
-
-**Example Usage:**
-
-```yaml
-- name: Run SQLite database setup
-  include_role:
-    name: samccann.sqlite.run
-  vars:
-    run_sqlite_db_path: /var/lib/myapp/database.db
-    run_create_backup: true
-    run_sample_users:
-      - username: admin
-        email: admin@myapp.com
-      - username: user1
-        email: user1@myapp.com
+- name: Verify backup integrity
+  samccann.sqlite.sqlite_backup:
+    src: /backup/myapp_backup.db
+    operation: verify
 ```
 
 ## Example Playbooks
@@ -204,25 +178,18 @@ A complete role that demonstrates SQLite database management operations.
     - name: Check database integrity
       samccann.sqlite.sqlite_backup:
         src: /var/lib/myapp/app.db
-        dest: /dev/null
         operation: verify
 
-    - name: Get database statistics
+    - name: Get table list
       samccann.sqlite.sqlite_query:
         db: /var/lib/myapp/app.db
-        query: |
-          SELECT
-            name as table_name,
-            (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=m.name) as exists,
-            (SELECT COUNT(*) FROM pragma_table_info(m.name)) as column_count
-          FROM sqlite_master m
-          WHERE type='table' AND name NOT LIKE 'sqlite_%'
+        query: "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
         fetch: all
-      register: db_stats
+      register: db_tables
 
-    - name: Display statistics
+    - name: Display tables
       debug:
-        var: db_stats.rows
+        var: db_tables.rows
 ```
 
 ## Best Practices
@@ -236,8 +203,6 @@ A complete role that demonstrates SQLite database management operations.
 ## Contributing
 
 Please read [CONTRIBUTING](CONTRIBUTING) for details on our code of conduct and the process for submitting pull requests.
-
-This collection was created through assisted AI via Cursor and the claude-4-sonnet model.
 
 ## License
 

@@ -13,9 +13,6 @@ database tables with support for complex table definitions and schema
 information.
 """
 
-from __future__ import absolute_import, division, print_function
-
-
 # pylint: disable=invalid-name
 __metaclass__ = type
 
@@ -59,11 +56,6 @@ options:
             - Use IF NOT EXISTS when creating table
         type: bool
         default: true
-    cascade:
-        description:
-            - Use CASCADE when dropping table (affects foreign keys)
-        type: bool
-        default: false
     gather_info:
         description:
             - Gather and return detailed information about the table
@@ -143,9 +135,24 @@ schema:
 """
 
 import os
+import re
 import sqlite3
 
 from ansible.module_utils.basic import AnsibleModule
+
+
+TABLE_NAME_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+
+def validate_table_name(name):
+    """Validate that a table name contains only safe characters."""
+    if not TABLE_NAME_RE.match(name):
+        raise ValueError(
+            f"Invalid table name: {name!r}. "
+            "Table names must start with a letter or underscore "
+            "and contain only alphanumeric characters and underscores.",
+        )
+    return name
 
 
 def table_exists(cursor, table_name):
@@ -162,6 +169,7 @@ def table_exists(cursor, table_name):
 
 def get_table_info(cursor, table_name):
     """Get detailed table information"""
+    validate_table_name(table_name)
     info = {}
 
     # Get column information
@@ -189,6 +197,7 @@ def get_table_info(cursor, table_name):
 
 def create_table(cursor, table_name, columns, if_not_exists=True):
     """Create table with specified columns"""
+    validate_table_name(table_name)
     if_not_exists_clause = "IF NOT EXISTS " if if_not_exists else ""
 
     # Build column definitions
@@ -206,13 +215,9 @@ def create_table(cursor, table_name, columns, if_not_exists=True):
     return sql
 
 
-def drop_table(cursor, table_name, cascade=False):
+def drop_table(cursor, table_name):
     """Drop table"""
-    # SQLite doesn't support CASCADE, but we can check for it
-    if cascade:
-        # This is more for compatibility - SQLite handles FK constraints
-        # differently
-        pass
+    validate_table_name(table_name)
 
     sql = f"DROP TABLE {table_name}"
     cursor.execute(sql)
@@ -228,7 +233,6 @@ def main():  # pylint: disable=too-many-branches
             "state": {"default": "present", "choices": ["absent", "present"]},
             "columns": {"type": "list", "elements": "dict"},
             "if_not_exists": {"type": "bool", "default": True},
-            "cascade": {"type": "bool", "default": False},
             "gather_info": {"type": "bool", "default": False},
         },
         supports_check_mode=True,
@@ -242,7 +246,6 @@ def main():  # pylint: disable=too-many-branches
     state = module.params["state"]
     columns = module.params["columns"]
     if_not_exists = module.params["if_not_exists"]
-    cascade = module.params["cascade"]
     gather_info = module.params["gather_info"]
 
     if not os.path.exists(db_path):
@@ -279,11 +282,13 @@ def main():  # pylint: disable=too-many-branches
         elif state == "absent":
             if exists:
                 if not module.check_mode:
-                    drop_table(cursor, table_name, cascade)
+                    drop_table(cursor, table_name)
                     conn.commit()
                 result["changed"] = True
                 result["exists"] = False
 
+    except ValueError as error:
+        module.fail_json(msg=str(error))
     except sqlite3.Error as error:
         module.fail_json(msg=f"SQLite error: {str(error)}")
     except OSError as error:

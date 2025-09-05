@@ -1,24 +1,10 @@
 """Unit tests for sqlite_table module."""
 
-import os
-import sys
-
 from unittest.mock import MagicMock
 
 import pytest
 
-
-# Add the modules directory to sys.path for importing
-sys.path.insert(
-    0,
-    os.path.join(os.path.dirname(__file__), "../../plugins/modules"),
-)
-
-try:
-    from sqlite_table import create_table, drop_table, get_table_info, table_exists
-except ImportError:
-    # Skip tests if module can't be imported
-    pytest.skip("Cannot import sqlite_table module", allow_module_level=True)
+from sqlite_table import create_table, drop_table, get_table_info, table_exists
 
 
 class TestSqliteTableFunctions:
@@ -97,3 +83,24 @@ class TestSqliteTableFunctions:
         expected_sql = "DROP TABLE old_table"
         assert sql == expected_sql
         mock_cursor.execute.assert_called_once_with(expected_sql)
+
+    def test_validate_table_name_valid(self):
+        """Test validate_table_name accepts valid names."""
+        from sqlite_table import validate_table_name
+
+        assert validate_table_name("users") == "users"
+        assert validate_table_name("_private") == "_private"
+        assert validate_table_name("my_table_2") == "my_table_2"
+
+    def test_validate_table_name_invalid(self):
+        """Test validate_table_name rejects invalid names."""
+        from sqlite_table import validate_table_name
+
+        with pytest.raises(ValueError, match="Invalid table name"):
+            validate_table_name("users; DROP TABLE")
+        with pytest.raises(ValueError, match="Invalid table name"):
+            validate_table_name("my-table")
+        with pytest.raises(ValueError, match="Invalid table name"):
+            validate_table_name("123table")
+        with pytest.raises(ValueError, match="Invalid table name"):
+            validate_table_name("table name")

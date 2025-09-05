@@ -1,25 +1,10 @@
 """Unit tests for sqlite_db module."""
 
-import os
 import sqlite3
-import sys
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-
-# Add the modules directory to sys.path for importing
-sys.path.insert(
-    0,
-    os.path.join(os.path.dirname(__file__), "../../plugins/modules"),
-)
-
-try:
-    from sqlite_db import create_backup, create_database, get_file_size
-except ImportError:
-    # Skip tests if module can't be imported
-    pytest.skip("Cannot import sqlite_db module", allow_module_level=True)
+from sqlite_db import create_backup, create_database, get_file_size
 
 
 class TestSqliteDbFunctions:

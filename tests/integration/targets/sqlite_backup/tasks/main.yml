@@ -99,7 +99,6 @@
 - name: Test verify operation on good backup
   samccann.sqlite.sqlite_backup:
     src: "{{ source_db_path }}"
-    dest: "{{ backup_db_path }}"
     operation: verify
   register: verify_good_result
 
@@ -231,7 +230,6 @@
 - name: Test verify operation on non-existent backup
   samccann.sqlite.sqlite_backup:
     src: "/tmp/nonexistent_backup.db"
-    dest: "/dev/null"
     operation: verify
   register: verify_nonexistent
   failed_when: false
@@ -253,7 +251,6 @@
 - name: Test verify operation on corrupted backup
   samccann.sqlite.sqlite_backup:
     src: "/tmp/corrupted_backup.db"
-    dest: "/dev/null"
     operation: verify
   register: verify_corrupted
   failed_when: false
@@ -270,14 +267,13 @@
     src: "{{ compressed_backup_path }}"
     dest: "/tmp/restore_from_compressed.db"
     operation: restore
-    compress: true
   register: restore_compressed
 
 - name: Verify restore from compressed backup
   ansible.builtin.assert:
     that:
       - restore_compressed is changed
-      - restore_compressed.compress == true
+      - restore_compressed.compressed == true
 
 - name: Clean up all test files
   ansible.builtin.file:

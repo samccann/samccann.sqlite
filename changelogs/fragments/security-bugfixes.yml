@@ -1,0 +1,20 @@
+security_fixes:
+  - Fixed SQL injection vulnerability in ``sqlite_table`` module by adding table name validation.
+
+bugfixes:
+  - Fixed DDL statement change detection in ``sqlite_query`` module.
+  - Fixed double-cursor bug in ``sqlite_query`` module where ``row_factory`` was set after cursor creation.
+  - Added missing ``lastrowid`` return value to ``sqlite_query`` module.
+  - Fixed backup failure not raising an error in ``sqlite_db`` module.
+  - Removed ``/dev/null`` hack from ``sqlite_backup`` module when running in check mode.
+  - Fixed ``backup_time`` key name inconsistency in ``sqlite_backup`` module.
+  - Fixed permission comparison to only trigger changes when mode or ownership actually differs in ``sqlite_db`` module.
+
+minor_changes:
+  - Removed unsupported ``cascade`` parameter from ``sqlite_table`` module (was silently ignored).
+  - Simplified ``ansible-core`` dependency handling in CI and tox configuration.
+  - Removed ``ansible.utils`` and ``community.general`` dependencies that were not used.
+  - Improved unit and integration test reliability.
+
+breaking_changes:
+  - Removed the unsupported ``cascade`` parameter from ``sqlite_table``.
