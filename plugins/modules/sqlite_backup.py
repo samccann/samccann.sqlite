@@ -166,13 +166,19 @@ def get_file_size(path):
 def verify_sqlite_db(db_path):
     """Verify SQLite database integrity"""
     try:
+        # First check if file has SQLite header
+        with open(db_path, "rb") as f:
+            header = f.read(16)
+            if not header.startswith(b"SQLite format 3\x00"):
+                return False
+
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("PRAGMA integrity_check")
         result = cursor.fetchone()
         conn.close()
         return result[0] == "ok"
-    except sqlite3.Error:
+    except (sqlite3.Error, OSError):
         return False
 
 
@@ -327,12 +333,15 @@ def main():
         elif operation == "verify":
             # Verify database integrity
             if src_path != "/dev/null":  # Skip verification for /dev/null
-                verified = verify_sqlite_db(src_path)
-                result["verified"] = verified
-                if not verified:
-                    module.fail_json(
-                        msg=f"Database integrity check failed: {src_path}",
-                    )
+                if not os.path.exists(src_path):
+                    result["verified"] = False
+                else:
+                    verified = verify_sqlite_db(src_path)
+                    result["verified"] = verified
+                    if not verified:
+                        module.fail_json(
+                            msg=f"Database integrity check failed: {src_path}",
+                        )
 
     except sqlite3.Error as error:
         module.fail_json(msg=f"Operation failed: {str(error)}")
