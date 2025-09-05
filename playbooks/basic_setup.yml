@@ -75,8 +75,8 @@
       loop:
         - username: alice
           email: alice@example.com
-        - username: bob
-          email: bob@example.com
+        - username: tambara
+          email: tambara@example.com
         - username: charlie
           email: charlie@example.com
 
@@ -96,7 +96,7 @@
           author: alice
         - title: "SQLite is great"
           content: "Here's why SQLite is perfect for small applications..."
-          author: bob
+          author: tambara
 
     - name: Query all users with post counts
       samccann.sqlite.sqlite_query:
