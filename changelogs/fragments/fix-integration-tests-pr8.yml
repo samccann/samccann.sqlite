@@ -1,0 +1,2 @@
+bugfixes:
+  - Fixed integration tests (https://github.com/samccann/ansible_collections_samccann_sqlite/pull/8).
