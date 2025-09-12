@@ -127,3 +127,118 @@ class TestSqliteQueryFunctions:
         )
 
         assert "rows" not in result
+
+    @patch("os.path.exists", return_value=True)
+    @patch("sqlite3.connect")
+    def test_execute_query_multiple_statements(self, mock_connect, mock_exists):
+        """Test execute_query with multiple statements."""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.rowcount = 2
+        mock_conn.cursor.return_value = mock_cursor
+        mock_connect.return_value = mock_conn
+
+        result = execute_query(
+            "/test/db.sqlite",
+            "INSERT INTO users (name) VALUES ('User1'); INSERT INTO users (name) VALUES ('User2');",
+        )
+
+        # Should use executescript for multiple statements
+        mock_cursor.executescript.assert_called_once()
+        mock_cursor.execute.assert_not_called()
+        assert result["changed"] is True
+
+    @patch("os.path.exists", return_value=True)
+    @patch("sqlite3.connect")
+    def test_execute_query_multiple_statements_with_parameters_error(
+        self,
+        mock_connect,
+        mock_exists,
+    ):
+        """Test execute_query with multiple statements and parameters should fail."""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_connect.return_value = mock_conn
+
+        with pytest.raises(
+            sqlite3.DatabaseError,
+            match="Parameters are not supported with multiple statements",
+        ):
+            execute_query(
+                "/test/db.sqlite",
+                "INSERT INTO users (name) VALUES (?); INSERT INTO users (name) VALUES (?);",
+                ["User1", "User2"],
+            )
+
+    @patch("os.path.exists", return_value=True)
+    @patch("sqlite3.connect")
+    def test_execute_query_ddl_changed_logic(self, mock_connect, mock_exists):
+        """Test execute_query DDL operations are always marked as changed."""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.rowcount = 0  # DDL operations often return 0
+        mock_conn.cursor.return_value = mock_cursor
+        mock_connect.return_value = mock_conn
+
+        # Test CREATE (DDL)
+        result = execute_query(
+            "/test/db.sqlite",
+            "CREATE INDEX idx_name ON users(name)",
+        )
+        assert result["changed"] is True  # Should be True even with rowcount=0
+
+        # Test DROP (DDL)
+        result = execute_query(
+            "/test/db.sqlite",
+            "DROP INDEX idx_name",
+        )
+        assert result["changed"] is True
+
+        # Test ALTER (DDL)
+        result = execute_query(
+            "/test/db.sqlite",
+            "ALTER TABLE users ADD COLUMN age INTEGER",
+        )
+        assert result["changed"] is True
+
+    @patch("os.path.exists", return_value=True)
+    @patch("sqlite3.connect")
+    def test_execute_query_dml_changed_logic(self, mock_connect, mock_exists):
+        """Test execute_query DML operations use rowcount for changed logic."""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_connect.return_value = mock_conn
+
+        # Test INSERT with rowcount > 0
+        mock_cursor.rowcount = 1
+        result = execute_query(
+            "/test/db.sqlite",
+            "INSERT INTO users (name) VALUES ('John')",
+        )
+        assert result["changed"] is True
+
+        # Test UPDATE with rowcount = 0 (no rows affected)
+        mock_cursor.rowcount = 0
+        result = execute_query(
+            "/test/db.sqlite",
+            "UPDATE users SET name = 'Jane' WHERE id = 999",
+        )
+        assert result["changed"] is False
+
+    @patch("os.path.exists", return_value=True)
+    @patch("sqlite3.connect")
+    def test_execute_query_select_not_changed(self, mock_connect, mock_exists):
+        """Test execute_query SELECT operations are never marked as changed."""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.rowcount = 5  # Even with rowcount > 0
+        mock_conn.cursor.return_value = mock_cursor
+        mock_connect.return_value = mock_conn
+
+        result = execute_query(
+            "/test/db.sqlite",
+            "SELECT * FROM users",
+        )
+        assert result["changed"] is False  # SELECT is never changed

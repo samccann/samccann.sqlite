@@ -39,6 +39,8 @@ options:
     query:
         description:
             - SQL query to execute
+            - Supports multiple statements separated by semicolons
+            - Parameters are not supported with multiple statements
         required: true
         type: str
     parameters:
@@ -104,6 +106,15 @@ EXAMPLES = """
     query: "SELECT COUNT(*) as total FROM users"
     fetch: one
   register: count_result
+
+- name: Execute multiple statements in transaction
+  samccann.sqlite.sqlite_query:
+    db: /tmp/example.db
+    query: |
+      INSERT INTO users (name, email) VALUES ('User1', 'user1@example.com');
+      INSERT INTO users (name, email) VALUES ('User2', 'user2@example.com');
+      UPDATE users SET active = 1 WHERE name LIKE 'User%';
+    transaction: true
 """
 
 RETURN = """
@@ -131,7 +142,7 @@ columns:
     type: list
     sample: ["id", "name", "email"]
 changed:
-    description: Whether the database was modified
+    description: Whether the database was modified. DDL always returns true.
     returned: always
     type: bool
     sample: true
@@ -168,13 +179,25 @@ def execute_query(
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # Execute query
-        if parameters:
-            cursor.execute(query, parameters)
-        else:
-            cursor.execute(query)
+        # Execute query - handle multiple statements
+        # Check if query contains multiple statements (semicolon-separated)
+        statements = [stmt.strip() for stmt in query.split(";") if stmt.strip()]
 
-        results["rowcount"] = cursor.rowcount
+        if len(statements) > 1:
+            # Multiple statements - use executescript (doesn't support parameters)
+            if parameters:
+                raise sqlite3.DatabaseError(
+                    "Parameters are not supported with multiple statements",
+                )
+            cursor.executescript(query)
+            results["rowcount"] = cursor.rowcount
+        else:
+            # Single statement - use execute (supports parameters)
+            if parameters:
+                cursor.execute(query, parameters)
+            else:
+                cursor.execute(query)
+            results["rowcount"] = cursor.rowcount
 
         # Fetch results based on fetch parameter
         if fetch != "none":
@@ -197,16 +220,35 @@ def execute_query(
                         results["rows"] = rows
 
         # Determine if this was a modifying query
-        modifying_keywords = [
-            "insert",
-            "update",
-            "delete",
-            "create",
-            "drop",
-            "alter",
-        ]
-        is_modifying = any(keyword in query.lower() for keyword in modifying_keywords)
-        results["changed"] = is_modifying and cursor.rowcount > 0
+        dml_keywords = ["insert", "update", "delete"]
+        ddl_keywords = ["create", "drop", "alter"]
+
+        query_lower = query.lower().strip()
+
+        # Check if we have multiple statements
+        statements = [stmt.strip() for stmt in query.split(";") if stmt.strip()]
+
+        if len(statements) > 1:
+            # For multiple statements, check if any statement is modifying
+            is_any_modifying = False
+            for stmt in statements:
+                stmt_lower = stmt.lower().strip()
+                if any(keyword in stmt_lower for keyword in dml_keywords + ddl_keywords):
+                    is_any_modifying = True
+                    break
+            results["changed"] = is_any_modifying
+        else:
+            # Single statement logic
+            is_dml = any(keyword in query_lower for keyword in dml_keywords)
+            is_ddl = any(keyword in query_lower for keyword in ddl_keywords)
+
+            # For DML operations, check rowcount; for DDL operations, assume changed if successful
+            if is_dml:
+                results["changed"] = cursor.rowcount > 0
+            elif is_ddl:
+                results["changed"] = True  # DDL operations always change the database schema
+            else:
+                results["changed"] = False  # SELECT and other read-only operations
 
         if transaction:
             conn.commit()
