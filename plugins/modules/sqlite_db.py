@@ -12,9 +12,6 @@ This module provides functionality to create, delete, or check the state of
 SQLite databases with support for file permissions and ownership management.
 """
 
-from __future__ import absolute_import, division, print_function
-
-
 # pylint: disable=invalid-name
 __metaclass__ = type
 
@@ -185,6 +182,10 @@ def main():  # pylint: disable=too-many-branches
         backup_file = create_backup(path)
         if backup_file:
             result["backup_file"] = backup_file
+        else:
+            module.fail_json(
+                msg=f"Failed to create backup of {path}",
+            )
 
     if state == "present":
         if not file_exists:
@@ -202,7 +203,11 @@ def main():  # pylint: disable=too-many-branches
             # Set file permissions
             if mode:
                 try:
-                    os.chmod(path, int(mode, 8))
+                    desired_mode = int(mode, 8)
+                    current_mode = os.stat(path).st_mode & 0o7777
+                    if current_mode != desired_mode:
+                        os.chmod(path, desired_mode)
+                        result["changed"] = True
                 except OSError as error:
                     module.fail_json(
                         msg=f"Failed to set mode {mode}: {str(error)}",
@@ -213,7 +218,12 @@ def main():  # pylint: disable=too-many-branches
                 try:
                     uid = pwd.getpwnam(owner).pw_uid if owner else -1
                     gid = grp.getgrnam(group).gr_gid if group else -1
-                    os.chown(path, uid, gid)
+                    stat_info = os.stat(path)
+                    current_uid = stat_info.st_uid
+                    current_gid = stat_info.st_gid
+                    if (owner and current_uid != uid) or (group and current_gid != gid):
+                        os.chown(path, uid, gid)
+                        result["changed"] = True
                 except (KeyError, OSError) as error:
                     module.fail_json(
                         msg=f"Failed to set ownership: {str(error)}",

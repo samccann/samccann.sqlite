@@ -13,9 +13,6 @@ DELETE and other SQL statements with support for parameterized queries and
 result fetching.
 """
 
-from __future__ import absolute_import, division, print_function
-
-
 # pylint: disable=invalid-name
 __metaclass__ = type
 
@@ -130,6 +127,11 @@ columns:
     returned: when fetch != 'none' and query returns data
     type: list
     sample: ["id", "name", "email"]
+lastrowid:
+    description: Row ID of the last inserted row (for INSERT statements)
+    returned: when query is an INSERT and row was inserted
+    type: int
+    sample: 1
 changed:
     description: Whether the database was modified
     returned: always
@@ -162,7 +164,6 @@ def execute_query(
 
     try:
         conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
 
         # Enable row factory to get column names
         conn.row_factory = sqlite3.Row
@@ -175,6 +176,10 @@ def execute_query(
             cursor.execute(query)
 
         results["rowcount"] = cursor.rowcount
+
+        # Capture lastrowid for INSERT statements
+        if cursor.lastrowid is not None:
+            results["lastrowid"] = cursor.lastrowid
 
         # Fetch results based on fetch parameter
         if fetch != "none":
@@ -205,8 +210,9 @@ def execute_query(
             "drop",
             "alter",
         ]
-        is_modifying = any(keyword in query.lower() for keyword in modifying_keywords)
-        results["changed"] = is_modifying and cursor.rowcount > 0
+        query_start = query.lstrip()[:6].lower()
+        is_modifying = any(keyword in query_start for keyword in modifying_keywords)
+        results["changed"] = is_modifying and cursor.rowcount != 0
 
         if transaction:
             conn.commit()
@@ -215,10 +221,6 @@ def execute_query(
         if conn and transaction:
             conn.rollback()
         raise sqlite3.DatabaseError(f"SQLite error: {str(error)}") from error
-    except Exception as error:
-        if conn and transaction:
-            conn.rollback()
-        raise error
     finally:
         if cursor:
             cursor.close()

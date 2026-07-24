@@ -12,9 +12,6 @@ This module provides functionality to backup, restore, and verify SQLite
 databases with support for compression and integrity checking.
 """
 
-from __future__ import absolute_import, division, print_function
-
-
 # pylint: disable=invalid-name
 __metaclass__ = type
 
@@ -39,7 +36,7 @@ options:
     dest:
         description:
             - Destination backup file path
-        required: true
+            - Required for backup and restore operations, not needed for verify
         type: path
     operation:
         description:
@@ -93,7 +90,6 @@ EXAMPLES = """
 - name: Verify backup integrity
   samccann.sqlite.sqlite_backup:
     src: /backup/production_backup.db
-    dest: /dev/null
     operation: verify
 """
 
@@ -105,7 +101,7 @@ src:
     sample: /var/lib/app/production.db
 dest:
     description: Destination file path
-    returned: always
+    returned: when operation is backup or restore
     type: str
     sample: /backup/production_backup.db
 operation:
@@ -138,9 +134,9 @@ verified:
     returned: when operation=backup and verify_backup=true
     type: bool
     sample: true
-backup_time:
-    description: Time taken for backup operation in seconds
-    returned: when operation=backup
+elapsed:
+    description: Time taken for the operation in seconds
+    returned: when operation is backup or restore
     type: float
     sample: 2.34
 """
@@ -173,11 +169,13 @@ def verify_sqlite_db(db_path):
                 return False
 
         conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA integrity_check")
-        result = cursor.fetchone()
-        conn.close()
-        return result[0] == "ok"
+        try:
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA integrity_check")
+            result = cursor.fetchone()
+            return result[0] == "ok"
+        finally:
+            conn.close()
     except (sqlite3.Error, OSError):
         return False
 
@@ -227,7 +225,7 @@ def main():
     module = AnsibleModule(
         argument_spec={
             "src": {"required": True, "type": "path"},
-            "dest": {"required": True, "type": "path"},
+            "dest": {"type": "path"},
             "operation": {
                 "default": "backup",
                 "choices": ["backup", "restore", "verify"],
@@ -236,6 +234,10 @@ def main():
             "overwrite": {"type": "bool", "default": False},
             "verify_backup": {"type": "bool", "default": True},
         },
+        required_if=[
+            ("operation", "backup", ["dest"]),
+            ("operation", "restore", ["dest"]),
+        ],
         supports_check_mode=True,
     )
 
@@ -249,10 +251,11 @@ def main():
     result = {
         "changed": False,
         "src": src_path,
-        "dest": dest_path,
         "operation": operation,
         "compressed": compress,
     }
+    if dest_path:
+        result["dest"] = dest_path
 
     # Check if source file exists
     if not os.path.exists(src_path) and operation != "verify":
@@ -263,7 +266,7 @@ def main():
         result["src_size"] = get_file_size(src_path)
 
     # Check if destination exists and handle overwrite
-    dest_exists = os.path.exists(dest_path)
+    dest_exists = dest_path and os.path.exists(dest_path)
     if dest_exists:
         result["dest_size"] = get_file_size(dest_path)
         if not overwrite and operation in ["backup", "restore"]:
@@ -281,7 +284,7 @@ def main():
 
             if not module.check_mode:
                 backup_time = backup_database(src_path, dest_path, compress)
-                result["backup_time"] = backup_time
+                result["elapsed"] = backup_time
                 result["dest_size"] = get_file_size(dest_path)
 
                 # Verify backup if requested
@@ -319,7 +322,7 @@ def main():
                     dest_path,
                     src_compressed,
                 )
-                result["backup_time"] = restore_time
+                result["elapsed"] = restore_time
                 result["dest_size"] = get_file_size(dest_path)
 
                 # Verify restored database
@@ -332,16 +335,15 @@ def main():
 
         elif operation == "verify":
             # Verify database integrity
-            if src_path != "/dev/null":  # Skip verification for /dev/null
-                if not os.path.exists(src_path):
-                    result["verified"] = False
-                else:
-                    verified = verify_sqlite_db(src_path)
-                    result["verified"] = verified
-                    if not verified:
-                        module.fail_json(
-                            msg=f"Database integrity check failed: {src_path}",
-                        )
+            if not os.path.exists(src_path):
+                result["verified"] = False
+            else:
+                verified = verify_sqlite_db(src_path)
+                result["verified"] = verified
+                if not verified:
+                    module.fail_json(
+                        msg=f"Database integrity check failed: {src_path}",
+                    )
 
     except sqlite3.Error as error:
         module.fail_json(msg=f"Operation failed: {str(error)}")

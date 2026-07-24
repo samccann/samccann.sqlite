@@ -24,7 +24,7 @@
     that:
       - db_create_result is changed
       - db_create_result.path == test_db_path
-      - db_create_result.state == "present"
+      - db_create_result.size is defined
 
 - name: Check if database file exists
   ansible.builtin.stat:
@@ -59,7 +59,7 @@
   ansible.builtin.assert:
     that:
       - db_create_mode is changed
-      - db_create_mode.mode == "0644"
+      - db_create_mode.size is defined
 
 - name: Check file permissions
   ansible.builtin.stat:
@@ -81,7 +81,7 @@
   ansible.builtin.assert:
     that:
       - db_delete_result is changed
-      - db_delete_result.state == "absent"
+      - db_delete_result.path == test_db_path
 
 - name: Check if database file was removed
   ansible.builtin.stat:

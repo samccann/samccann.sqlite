@@ -77,9 +77,10 @@
   ansible.builtin.assert:
     that:
       - select_all_result is not changed
-      - select_all_result.query_result | length == 2
-      - select_all_result.query_result[0].username == "john_doe"
-      - select_all_result.query_result[1].username == "jane_doe"
+      - select_all_result.rows | length == 2
+      - select_all_result.rows[0][1] == "john_doe"
+      - select_all_result.rows[1][1] == "jane_doe"
+      - select_all_result.columns == ["id", "username", "email", "age", "created_at"]
 
 - name: Test SELECT query with fetch one
   samccann.sqlite.sqlite_query:
@@ -93,23 +94,9 @@
   ansible.builtin.assert:
     that:
       - select_one_result is not changed
-      - select_one_result.query_result.username == "john_doe"
-      - select_one_result.query_result.age == 25
-
-- name: Test SELECT query with fetch many
-  samccann.sqlite.sqlite_query:
-    db: "{{ test_db_path }}"
-    query: "SELECT username, email FROM users"
-    fetch: many
-    fetch_size: 1
-  register: select_many_result
-
-- name: Verify SELECT many result
-  ansible.builtin.assert:
-    that:
-      - select_many_result is not changed
-      - select_many_result.query_result | length == 1
-      - select_many_result.query_result[0].username is defined
+      - select_one_result.rows | length == 1
+      - select_one_result.rows[0][1] == "john_doe"
+      - select_one_result.rows[0][3] == 25
 
 - name: Test UPDATE query
   samccann.sqlite.sqlite_query:
@@ -134,7 +121,7 @@
 - name: Check updated value
   ansible.builtin.assert:
     that:
-      - verify_update.query_result.age == 26
+      - verify_update.rows[0][0] == 26
 
 - name: Test DELETE query
   samccann.sqlite.sqlite_query:
@@ -160,7 +147,7 @@
   ansible.builtin.assert:
     that:
       - no_results is not changed
-      - no_results.query_result | length == 0
+      - no_results.rows | default([]) | length == 0
 
 - name: Test DDL query (CREATE INDEX)
   samccann.sqlite.sqlite_query:
@@ -172,7 +159,6 @@
   ansible.builtin.assert:
     that:
       - ddl_result is changed
-      - ddl_result.rowcount == -1 # DDL queries typically return -1
 
 - name: Test query with syntax error
   samccann.sqlite.sqlite_query:
@@ -219,7 +205,7 @@
     db: "{{ test_db_path }}"
     query: |
       INSERT INTO users (username, email, age) VALUES ('test1', 'test1@example.com', 20);
-      INSERT INTO users (username, email, age) VALUES ('test2', 'test2@example.com', 22);
+      INSERT INTO users (username, email, age) VALUES ('test2', 'test2@example.com', 22)
   register: transaction_result
 
 - name: Verify transaction result

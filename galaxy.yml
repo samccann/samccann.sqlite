@@ -5,7 +5,7 @@
 
 namespace: "samccann"
 name: "sqlite"
-version: 1.0.0
+version: "1.0.0"
 readme: README.md
 authors:
   - SQLite Collection Maintainer <maintainer@example.com>
@@ -17,14 +17,12 @@ license_file: LICENSE
 tags: ["database", "sqlite", "sql", "backup", "linux", "tools"]
 
 # Collection dependencies
-dependencies:
-  "ansible.utils": "*" # note: "*" selects the latest version available
-  "community.general": "*" # For additional utility modules
+dependencies: {}
 
-repository: http://example.com/repository
-documentation: http://docs.example.com
-homepage: http://example.com
-issues: http://example.com/issue/tracker
+repository: https://github.com/samccann/samccann.sqlite
+documentation: https://github.com/samccann/samccann.sqlite
+homepage: https://github.com/samccann/samccann.sqlite
+issues: https://github.com/samccann/samccann.sqlite/issues
 
 # A list of file glob-like patterns used to filter any files or directories that should not be included in the build
 # artifact. A pattern is matched from the relative path of the file or directory of the collection directory. This
